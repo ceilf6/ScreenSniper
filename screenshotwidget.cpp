@@ -13,7 +13,7 @@
 #include <QDesktopServices>
 
 ScreenshotWidget::ScreenshotWidget(QWidget *parent)
-    : QWidget(parent), selecting(false), selected(false), currentDrawMode(None), toolbar(nullptr)
+    : QWidget(parent), selecting(false), selected(false), currentDrawMode(None), toolbar(nullptr), devicePixelRatio(1.0), showMagnifier(false)
 {
     setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint | Qt::Tool);
     setAttribute(Qt::WA_TranslucentBackground);
@@ -90,7 +90,10 @@ void ScreenshotWidget::startCapture()
     QScreen *screen = QGuiApplication::primaryScreen();
     if (screen)
     {
+        // 获取屏幕截图，grabWindow(0)返回的是物理像素
         screenPixmap = screen->grabWindow(0);
+        devicePixelRatio = screen->devicePixelRatio();
+        // 不设置devicePixelRatio，直接处理物理像素数据
     }
 
     // 设置窗口大小为屏幕大小
@@ -109,7 +112,10 @@ void ScreenshotWidget::paintEvent(QPaintEvent *event)
     QPainter painter(this);
 
     // 绘制背景截图
-    painter.drawPixmap(0, 0, screenPixmap);
+    // screenPixmap包含物理像素，需要缩放到窗口大小（逻辑像素）
+    QRect windowRect = rect();
+    painter.drawPixmap(windowRect, screenPixmap, 
+                      QRect(0, 0, screenPixmap.width(), screenPixmap.height()));
 
     // 绘制半透明遮罩
     painter.fillRect(rect(), QColor(0, 0, 0, 100));
@@ -130,7 +136,14 @@ void ScreenshotWidget::paintEvent(QPaintEvent *event)
         if (!currentRect.isEmpty())
         {
             // 显示选中区域的原始图像
-            painter.drawPixmap(currentRect, screenPixmap, currentRect);
+            // 将逻辑坐标转换为物理坐标
+            QRect physicalRect(
+                currentRect.x() * devicePixelRatio,
+                currentRect.y() * devicePixelRatio,
+                currentRect.width() * devicePixelRatio,
+                currentRect.height() * devicePixelRatio
+            );
+            painter.drawPixmap(currentRect, screenPixmap, physicalRect);
 
             // 绘制选中框
             QPen pen(QColor(0, 150, 255), 2);
@@ -171,6 +184,62 @@ void ScreenshotWidget::paintEvent(QPaintEvent *event)
             }
         }
     }
+    
+    // 绘制放大镜
+    if (showMagnifier && selecting)
+    {
+        int magnifierSize = 120; // 放大镜大小
+        int magnifierScale = 4;  // 放大倍数
+        
+        // 计算放大镜位置(在鼠标右下方)
+        int magnifierX = currentMousePos.x() + 20;
+        int magnifierY = currentMousePos.y() + 20;
+        
+        // 确保放大镜不超出屏幕
+        if (magnifierX + magnifierSize > width())
+            magnifierX = currentMousePos.x() - magnifierSize - 20;
+        if (magnifierY + magnifierSize > height())
+            magnifierY = currentMousePos.y() - magnifierSize - 20;
+        
+        // 从原始截图中获取鼠标位置附近的区域（物理像素）
+        int sourceSize = magnifierSize / magnifierScale;
+        QRect logicalSourceRect(
+            currentMousePos.x() - sourceSize / 2,
+            currentMousePos.y() - sourceSize / 2,
+            sourceSize,
+            sourceSize
+        );
+        
+        // 确保源区域在截图范围内
+        logicalSourceRect = logicalSourceRect.intersected(QRect(0, 0, width(), height()));
+        
+        // 转换为物理像素坐标
+        QRect physicalSourceRect(
+            logicalSourceRect.x() * devicePixelRatio,
+            logicalSourceRect.y() * devicePixelRatio,
+            logicalSourceRect.width() * devicePixelRatio,
+            logicalSourceRect.height() * devicePixelRatio
+        );
+        
+        if (!physicalSourceRect.isEmpty())
+        {
+            // 绘制放大镜背景
+            painter.setPen(QPen(QColor(0, 150, 255), 2));
+            painter.setBrush(Qt::white);
+            painter.drawRect(magnifierX, magnifierY, magnifierSize, magnifierSize);
+            
+            // 绘制放大的图像
+            QRect targetRect(magnifierX, magnifierY, magnifierSize, magnifierSize);
+            painter.drawPixmap(targetRect, screenPixmap, physicalSourceRect);
+            
+            // 绘制十字准星
+            painter.setPen(QPen(Qt::red, 1));
+            int centerX = magnifierX + magnifierSize / 2;
+            int centerY = magnifierY + magnifierSize / 2;
+            painter.drawLine(centerX - 10, centerY, centerX + 10, centerY);
+            painter.drawLine(centerX, centerY - 10, centerX, centerY + 10);
+        }
+    }
 }
 
 void ScreenshotWidget::mousePressEvent(QMouseEvent *event)
@@ -179,8 +248,10 @@ void ScreenshotWidget::mousePressEvent(QMouseEvent *event)
     {
         startPoint = event->pos();
         endPoint = event->pos();
+        currentMousePos = event->pos();
         selecting = true;
         selected = false;
+        showMagnifier = true;
         toolbar->hide();
         update();
     }
@@ -188,9 +259,12 @@ void ScreenshotWidget::mousePressEvent(QMouseEvent *event)
 
 void ScreenshotWidget::mouseMoveEvent(QMouseEvent *event)
 {
+    currentMousePos = event->pos();
+    
     if (selecting)
     {
         endPoint = event->pos();
+        showMagnifier = true;
         update();
     }
 }
@@ -201,6 +275,7 @@ void ScreenshotWidget::mouseReleaseEvent(QMouseEvent *event)
     {
         selecting = false;
         selected = true;
+        showMagnifier = false;
         selectedRect = QRect(startPoint, endPoint).normalized();
 
         // 显示工具栏
@@ -268,7 +343,18 @@ void ScreenshotWidget::saveScreenshot()
     }
 
     // 从原始截图中裁剪选中区域
-    QPixmap croppedPixmap = screenPixmap.copy(selectedRect);
+    // screenPixmap中存储的是物理像素，需要将逻辑坐标转换为物理坐标
+    QRect physicalRect(
+        selectedRect.x() * devicePixelRatio,
+        selectedRect.y() * devicePixelRatio,
+        selectedRect.width() * devicePixelRatio,
+        selectedRect.height() * devicePixelRatio
+    );
+    
+    // 从原始像素数据中裁剪，不使用DPR
+    QImage tempImage = screenPixmap.toImage();
+    QImage croppedImage = tempImage.copy(physicalRect);
+    QPixmap croppedPixmap = QPixmap::fromImage(croppedImage);
 
     // 获取默认保存路径
     QString defaultPath = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
@@ -299,7 +385,18 @@ void ScreenshotWidget::copyToClipboard()
     }
 
     // 从原始截图中裁剪选中区域
-    QPixmap croppedPixmap = screenPixmap.copy(selectedRect);
+    // screenPixmap中存储的是物理像素，需要将逻辑坐标转换为物理坐标
+    QRect physicalRect(
+        selectedRect.x() * devicePixelRatio,
+        selectedRect.y() * devicePixelRatio,
+        selectedRect.width() * devicePixelRatio,
+        selectedRect.height() * devicePixelRatio
+    );
+    
+    // 从原始像素数据中裁剪，不使用DPR
+    QImage tempImage = screenPixmap.toImage();
+    QImage croppedImage = tempImage.copy(physicalRect);
+    QPixmap croppedPixmap = QPixmap::fromImage(croppedImage);
 
     // 复制到剪贴板
     QClipboard *clipboard = QGuiApplication::clipboard();

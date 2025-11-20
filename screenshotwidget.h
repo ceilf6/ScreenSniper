@@ -54,6 +54,13 @@ private:
 
     // 尺寸显示标签
     QLabel *sizeLabel;
+    
+    // 屏幕设备像素比
+    qreal devicePixelRatio;
+    
+    // 放大镜相关
+    QPoint currentMousePos;
+    bool showMagnifier;
 
     // 绘制相关
     enum DrawMode
