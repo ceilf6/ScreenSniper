@@ -114,25 +114,23 @@ void MainWindow::onCaptureScreen()
     // 隐藏主窗口
     hide();
 
-    // 延迟一下让窗口完全隐藏
+    // 创建截图窗口
+    if (!screenshotWidget)
+    {
+        screenshotWidget = new ScreenshotWidget();
+        
+        connect(screenshotWidget, &ScreenshotWidget::screenshotTaken, this, [this]()
+                {
+            show();
+            trayIcon->showMessage("截图成功", "全屏截图已保存", QSystemTrayIcon::Information, 2000); });
+
+        connect(screenshotWidget, &ScreenshotWidget::screenshotCancelled, this, [this]()
+                { show(); });
+    }
+
+    // 延迟一下让窗口完全隐藏后再截图
     QTimer::singleShot(200, [this]()
-                       {
-        QScreen *screen = QGuiApplication::primaryScreen();
-        if (screen) {
-            QPixmap screenshot = screen->grabWindow(0);
-            
-            // 保存到剪贴板
-            QClipboard *clipboard = QGuiApplication::clipboard();
-            clipboard->setPixmap(screenshot);
-            
-            // 可选：保存到文件
-            QString fileName = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation) +
-                             "/screenshot_" + QDateTime::currentDateTime().toString("yyyyMMdd_hhmmss") + ".png";
-            screenshot.save(fileName);
-            
-            trayIcon->showMessage("截图成功", "截图已保存到剪贴板和图片文件夹", QSystemTrayIcon::Information, 2000);
-        }
-        show(); });
+                       { screenshotWidget->startCaptureFullScreen(); });
 }
 
 void MainWindow::onCaptureArea()

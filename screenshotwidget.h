@@ -16,6 +16,7 @@ public:
     ~ScreenshotWidget();
 
     void startCapture();
+    void startCaptureFullScreen(); // 直接截取全屏并显示工具栏
 
 signals:
     void screenshotTaken();
@@ -54,10 +55,10 @@ private:
 
     // 尺寸显示标签
     QLabel *sizeLabel;
-    
+
     // 屏幕设备像素比
     qreal devicePixelRatio;
-    
+
     // 放大镜相关
     QPoint currentMousePos;
     bool showMagnifier;
