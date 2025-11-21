@@ -91,19 +91,55 @@ void ScreenshotWidget::setupToolbar()
 
 void ScreenshotWidget::startCapture()
 {
-    // 获取所有屏幕的截图
+    // 获取所有屏幕并计算虚拟桌面大小
+    QList<QScreen *> screens = QGuiApplication::screens();
+    QRect virtualGeometry;
+
+    // 计算所有屏幕的联合区域
+    for (QScreen *screen : screens)
+    {
+        virtualGeometry = virtualGeometry.united(screen->geometry());
+    }
+
+    // 获取主屏幕用于截图
     QScreen *screen = QGuiApplication::primaryScreen();
     if (screen)
     {
-        // 获取屏幕截图，grabWindow(0)返回的是物理像素
-        screenPixmap = screen->grabWindow(0);
         devicePixelRatio = screen->devicePixelRatio();
-        // 不设置devicePixelRatio，直接处理物理像素数据
+
+        // 获取整个虚拟桌面的截图
+        // 创建一个足够大的 pixmap 来容纳所有屏幕
+        QPixmap fullScreenshot(virtualGeometry.width() * devicePixelRatio,
+                               virtualGeometry.height() * devicePixelRatio);
+        fullScreenshot.setDevicePixelRatio(devicePixelRatio);
+        fullScreenshot.fill(Qt::transparent);
+
+        QPainter painter(&fullScreenshot);
+
+        // 截取每个屏幕并拼接
+        for (QScreen *scr : screens)
+        {
+            QPixmap screenCapture = scr->grabWindow(0);
+            QRect screenGeom = scr->geometry();
+
+            // 计算相对于虚拟桌面的位置
+            QPoint offset = screenGeom.topLeft() - virtualGeometry.topLeft();
+
+            painter.drawPixmap(offset, screenCapture);
+        }
+
+        painter.end();
+        screenPixmap = fullScreenshot;
     }
 
-    // 设置窗口大小为屏幕大小
-    setGeometry(screen->geometry());
-    showFullScreen();
+    // 设置窗口标志以绕过窗口管理器
+    setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint | Qt::Tool | Qt::BypassWindowManagerHint);
+
+    // 设置窗口大小和位置为整个虚拟桌面
+    setGeometry(virtualGeometry);
+
+    // 直接显示，不使用全屏模式
+    show();
 
     // 确保窗口获得焦点以接收键盘事件
     setFocus();
@@ -121,22 +157,19 @@ void ScreenshotWidget::startCaptureFullScreen()
     startCapture();
 
     // 然后立即设置为全屏模式
-    QTimer::singleShot(100, this, [this]()
+    QTimer::singleShot(150, this, [this]()
                        {
         selectedRect = rect();
         selected = true;
         selecting = false;
         
-        qDebug() << "Full screen mode activated";
-        qDebug() << "Selected rect:" << selectedRect;
-        
+        toolbar->setParent(this);
         toolbar->adjustSize();
         updateToolbarPosition();
+        toolbar->setWindowFlags(Qt::Widget);
         toolbar->raise();
         toolbar->show();
-        
-        qDebug() << "Toolbar visible:" << toolbar->isVisible();
-        qDebug() << "Toolbar pos:" << toolbar->pos();
+        toolbar->activateWindow();
         
         update(); });
 }
@@ -377,11 +410,11 @@ void ScreenshotWidget::updateToolbarPosition()
 
     int x, y;
 
-    // 如果是全屏截图，将工具栏放在屏幕底部中央
-    if (selectedRect == rect())
+    // 如果是全屏截图或接近全屏，将工具栏放在屏幕底部中央偏上
+    if (selectedRect.width() >= width() - 10 && selectedRect.height() >= height() - 10)
     {
         x = (width() - toolbarWidth) / 2;
-        y = height() - toolbarHeight - 20;
+        y = height() - toolbarHeight - 60; // 增加底部边距，确保可见
     }
     else
     {
