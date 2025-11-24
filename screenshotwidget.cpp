@@ -490,13 +490,27 @@ void ScreenshotWidget::updateToolbarPosition()
     int toolbarWidth = toolbar->sizeHint().width();
     int toolbarHeight = toolbar->sizeHint().height();
 
+    // 获取当前屏幕的可用区域（避开 Dock 和菜单栏）
+    QScreen *screen = QGuiApplication::screenAt(geometry().center());
+    if (!screen) screen = QGuiApplication::primaryScreen();
+    
+    // availableGeometry 是全局坐标
+    QRect availableGeometry = screen->availableGeometry();
+    
+    // 窗口左上角的全局坐标
+    QPoint windowTopLeft = geometry().topLeft();
+    
+    // 可用区域相对于窗口的底部 Y 坐标
+    int availableBottomY = availableGeometry.bottom() - windowTopLeft.y();
+
     int x, y;
 
     // 如果是全屏截图或接近全屏，将工具栏放在屏幕底部中央偏上
     if (selectedRect.width() >= width() - 10 && selectedRect.height() >= height() - 10)
     {
         x = (width() - toolbarWidth) / 2;
-        y = height() - toolbarHeight - 60; // 增加底部边距，确保可见
+        // 使用 availableBottomY 确保不被 Dock 遮挡
+        y = availableBottomY - toolbarHeight - 20; 
     }
     else
     {
@@ -504,8 +518,8 @@ void ScreenshotWidget::updateToolbarPosition()
         x = selectedRect.x() + (selectedRect.width() - toolbarWidth) / 2;
         y = selectedRect.bottom() + 10;
 
-        // 如果超出屏幕底部，则放在选中区域上方
-        if (y + toolbarHeight > height())
+        // 如果超出可用区域底部，则放在选中区域上方
+        if (y + toolbarHeight > availableBottomY)
         {
             y = selectedRect.top() - toolbarHeight - 10;
         }
