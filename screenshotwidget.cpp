@@ -150,6 +150,7 @@ void ScreenshotWidget::startCapture()
     selecting = false;
     selected = false;
     selectedRect = QRect();
+    showMagnifier = true; // 在截图开始时就启用放大镜
 }
 
 void ScreenshotWidget::startCaptureFullScreen()
@@ -255,7 +256,7 @@ void ScreenshotWidget::paintEvent(QPaintEvent *event)
     }
 
     // 绘制放大镜
-    if (showMagnifier && selecting)
+    if (showMagnifier && !selected)
     {
         int magnifierSize = 120; // 放大镜大小
         int magnifierScale = 4;  // 放大倍数
@@ -358,7 +359,7 @@ void ScreenshotWidget::mousePressEvent(QMouseEvent *event)
             currentMousePos = event->pos();
             selecting = true;
             selected = false;
-            showMagnifier = true;
+            // showMagnifier已经在startCapture时设置为true，这里不需要重复设置
             toolbar->hide();
         }
         update();
@@ -378,6 +379,11 @@ void ScreenshotWidget::mouseMoveEvent(QMouseEvent *event)
     else if (isDrawing)
     {
         drawEndPoint = event->pos();
+        update();
+    }
+    else if (!selected)
+    {
+        // 在框选前的鼠标移动时也触发更新，以显示放大镜
         update();
     }
 }
