@@ -419,7 +419,7 @@ void ScreenshotWidget::startCapture()
     // 获取鼠标当前位置所在的屏幕
     QPoint cursorPos = QCursor::pos();
     QScreen *currentScreen = nullptr;
-    
+
     QList<QScreen *> screens = QGuiApplication::screens();
     for (QScreen *scr : screens)
     {
@@ -429,40 +429,40 @@ void ScreenshotWidget::startCapture()
             break;
         }
     }
-    
+
     // 如果没有找到，使用主屏幕
     if (!currentScreen)
     {
         currentScreen = QGuiApplication::primaryScreen();
     }
-    
+
     if (currentScreen)
     {
         devicePixelRatio = currentScreen->devicePixelRatio();
-        
+
         // 获取当前屏幕的几何信息
         QRect screenGeometry = currentScreen->geometry();
-        
+
         // 保存屏幕的原点位置
         virtualGeometryTopLeft = screenGeometry.topLeft();
-        
+
         // 只截取当前屏幕
         screenPixmap = currentScreen->grabWindow(0);
-        
+
         // 设置窗口标志以绕过窗口管理器
         setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint | Qt::Tool | Qt::BypassWindowManagerHint);
-        
+
         // 设置窗口大小和位置为当前屏幕
         setGeometry(screenGeometry);
-        
+
         // 直接显示，不使用全屏模式
         show();
-        
+
         // 确保窗口获得焦点以接收键盘事件
         setFocus();
         activateWindow();
         raise();
-        
+
         selecting = false;
         selected = false;
         selectedRect = QRect();
@@ -530,7 +530,7 @@ void ScreenshotWidget::paintEvent(QPaintEvent *event)
             // 将窗口坐标转换为截图坐标（考虑虚拟桌面偏移）
             QPoint windowPos = geometry().topLeft();
             QPoint offset = windowPos - virtualGeometryTopLeft;
-            
+
             QRect physicalRect(
                 (currentRect.x() + offset.x()) * devicePixelRatio,
                 (currentRect.y() + offset.y()) * devicePixelRatio,
@@ -659,7 +659,7 @@ void ScreenshotWidget::paintEvent(QPaintEvent *event)
         // 转换为物理像素坐标（考虑虚拟桌面偏移）
         QPoint windowPos = geometry().topLeft();
         QPoint offset = windowPos - virtualGeometryTopLeft;
-        
+
         QRect physicalSourceRect(
             (logicalSourceRect.x() + offset.x()) * devicePixelRatio,
             (logicalSourceRect.y() + offset.y()) * devicePixelRatio,
@@ -1086,13 +1086,13 @@ void ScreenshotWidget::updateToolbarPosition()
     // 获取当前屏幕的可用区域（避开 Dock 和菜单栏）
     QScreen *screen = QGuiApplication::screenAt(geometry().center());
     if (!screen) screen = QGuiApplication::primaryScreen();
-    
+
     // availableGeometry 是全局坐标
     QRect availableGeometry = screen->availableGeometry();
-    
+
     // 窗口左上角的全局坐标
     QPoint windowTopLeft = geometry().topLeft();
-    
+
     // 可用区域相对于窗口的底部 Y 坐标
     int availableBottomY = availableGeometry.bottom() - windowTopLeft.y();
 
@@ -1103,7 +1103,7 @@ void ScreenshotWidget::updateToolbarPosition()
     {
         x = (width() - toolbarWidth) / 2;
         // 使用 availableBottomY 确保不被 Dock 遮挡
-        y = availableBottomY - toolbarHeight - 20; 
+        y = availableBottomY - toolbarHeight - 20;
     }
     else
     {
@@ -1149,7 +1149,7 @@ void ScreenshotWidget::saveScreenshot()
     int y = qRound(selectedRect.y() * devicePixelRatio);
     int w = qRound(selectedRect.width() * devicePixelRatio);
     int h = qRound(selectedRect.height() * devicePixelRatio);
-    
+
     QRect physicalRect(x, y, w, h);
     qDebug() << "Physical Rect:" << physicalRect;
 
@@ -1157,14 +1157,14 @@ void ScreenshotWidget::saveScreenshot()
     // 从原始像素数据中裁剪
     QImage tempImage = screenPixmap.toImage();
     qDebug() << "Temp Image Size:" << tempImage.size();
-    
+
     QImage croppedImage = tempImage.copy(physicalRect);
     QPixmap croppedPixmap = QPixmap::fromImage(croppedImage);
-    
+
     // 强制将 DPR 设置为 1.0，以便我们直接在物理像素上进行绘制
     // 这样可以避免 QPainter 自动应用 DPR 导致的双重缩放
     croppedPixmap.setDevicePixelRatio(1.0);
-    
+
     qDebug() << "Cropped Pixmap Size:" << croppedPixmap.size();
     qDebug() << "Cropped Pixmap DPR:" << croppedPixmap.devicePixelRatio();
 
@@ -1178,11 +1178,11 @@ void ScreenshotWidget::saveScreenshot()
         // 计算相对于选中区域左上角的逻辑坐标
         QPointF relativeStart = arrow.start - selectedRect.topLeft();
         QPointF relativeEnd = arrow.end - selectedRect.topLeft();
-        
+
         // 转换为物理坐标
         QPointF adjustedStart = relativeStart * devicePixelRatio;
         QPointF adjustedEnd = relativeEnd * devicePixelRatio;
-        
+
         qDebug() << "Arrow:" << arrow.start << "->" << arrow.end;
         qDebug() << "Relative:" << relativeStart << "->" << relativeEnd;
         qDebug() << "Adjusted (Physical):" << adjustedStart << "->" << adjustedEnd;
@@ -1292,14 +1292,14 @@ void ScreenshotWidget::copyToClipboard()
 
     qDebug() << "=== Copy to Clipboard Debug Info ===";
     qDebug() << "Device Pixel Ratio:" << devicePixelRatio;
-    
+
     // 从原始截图中裁剪选中区域
     // screenPixmap中存储的是物理像素，需要将逻辑坐标转换为物理坐标
     int x = qRound(selectedRect.x() * devicePixelRatio);
     int y = qRound(selectedRect.y() * devicePixelRatio);
     int w = qRound(selectedRect.width() * devicePixelRatio);
     int h = qRound(selectedRect.height() * devicePixelRatio);
-    
+
     QRect physicalRect(x, y, w, h);
 
 
@@ -1307,7 +1307,7 @@ void ScreenshotWidget::copyToClipboard()
     QImage tempImage = screenPixmap.toImage();
     QImage croppedImage = tempImage.copy(physicalRect);
     QPixmap croppedPixmap = QPixmap::fromImage(croppedImage);
-    
+
     // 强制将 DPR 设置为 1.0，以便我们直接在物理像素上进行绘制
     // 这样可以避免 QPainter 自动应用 DPR 导致的双重缩放
     croppedPixmap.setDevicePixelRatio(1.0);
@@ -1322,11 +1322,11 @@ void ScreenshotWidget::copyToClipboard()
         // 计算相对于选中区域左上角的逻辑坐标
         QPointF relativeStart = arrow.start - selectedRect.topLeft();
         QPointF relativeEnd = arrow.end - selectedRect.topLeft();
-        
+
         // 转换为物理坐标
         QPointF adjustedStart = relativeStart * devicePixelRatio;
         QPointF adjustedEnd = relativeEnd * devicePixelRatio;
-        
+
         drawArrow(painter, adjustedStart, adjustedEnd, arrow.color, arrow.width * devicePixelRatio, devicePixelRatio);
     }
 

@@ -55,6 +55,7 @@ struct DrawnPenStroke
     int width;
 };
 
+
 class ScreenshotWidget : public QWidget
 {
     Q_OBJECT
@@ -79,7 +80,6 @@ protected:
 
 private slots:
     void onTextInputFinished();
-
 
 private:
 
@@ -214,11 +214,13 @@ private:
     QVector<DrawnText> texts;
     QVector<DrawnPenStroke> penStrokes;
 
+
     // 当前绘制的临时数据
     bool isDrawing;
     QPoint drawStartPoint;
     QPoint drawEndPoint;
     QVector<QPoint> currentPenStroke;
+
 };
 
 #endif // SCREENSHOTWIDGET_H
