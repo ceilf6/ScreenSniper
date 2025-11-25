@@ -309,7 +309,7 @@ void ScreenshotWidget::paintEvent(QPaintEvent *event)
             // 绘制放大镜背景
             painter.setPen(QPen(QColor(0, 150, 255), 2));
             painter.setBrush(Qt::white);
-            painter.drawRect(magnifierX, magnifierY, magnifierSize, magnifierSize);
+            painter.drawRect(magnifierX, magnifierY, magnifiserSize, magnifierSize);
 
             // 绘制放大的图像
             QRect targetRect(magnifierX, magnifierY, magnifierSize, magnifierSize);
