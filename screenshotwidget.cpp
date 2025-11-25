@@ -15,11 +15,22 @@
 #include <QHBoxLayout>
 #include <QDesktopServices>
 #include <cmath>
-
+#include<QLineEdit>
+#include<QFontDialog>
 
 ScreenshotWidget::ScreenshotWidget(QWidget *parent)
-    : QWidget(parent), selecting(false), selected(false), currentDrawMode(None), toolbar(nullptr), devicePixelRatio(1.0), showMagnifier(false), isDrawing(false)
-
+    : QWidget(parent),
+      selecting(false),
+      selected(false),
+      currentDrawMode(None),
+      toolbar(nullptr),
+      devicePixelRatio(1.0),
+      showMagnifier(false),
+      isDrawing(false),
+      textInput(nullptr),
+      isTextInputActive(false),
+      isTextMoving(false),
+      movingText(nullptr)
 {
     setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint | Qt::Tool);
     setAttribute(Qt::WA_TranslucentBackground);
@@ -28,7 +39,8 @@ ScreenshotWidget::ScreenshotWidget(QWidget *parent)
     setFocusPolicy(Qt::StrongFocus); // 确保窗口能接收键盘事件
 
     setupToolbar();
-    //setupMosaicToolbar();
+    setupTextInput();
+
     // 创建尺寸标签
     sizeLabel = new QLabel(this);
     sizeLabel->setStyleSheet("QLabel { background-color: rgba(0, 0, 0, 180); color: white; "
@@ -42,7 +54,6 @@ ScreenshotWidget::~ScreenshotWidget()
 
 void ScreenshotWidget::setupToolbar()
 {
-    // 主工具栏设置
     toolbar = new QWidget(this);
     toolbar->setStyleSheet(
         "QWidget { background-color: rgba(40, 40, 40, 200); border-radius: 5px; }"
@@ -50,7 +61,7 @@ void ScreenshotWidget::setupToolbar()
         "border: none; padding: 8px 15px; border-radius: 3px; font-size: 13px; }"
         "QPushButton:hover { background-color: rgba(80, 80, 80, 255); }"
         "QPushButton:pressed { background-color: rgba(50, 50, 50, 255); }"
-        "QLabel { background-color: transparent; color: white; padding: 5px; font-size: 12px; }");
+        "QPushButton:checked { background-color: rgba(0, 150, 255, 255); }");
 
     QHBoxLayout *layout = new QHBoxLayout(toolbar);
     layout->setSpacing(5);
@@ -61,8 +72,7 @@ void ScreenshotWidget::setupToolbar()
     btnArrow = new QPushButton("箭头", toolbar);
     btnText = new QPushButton("文字", toolbar);
     btnPen = new QPushButton("画笔", toolbar);
-    btnMosaic = new QPushButton("马赛克", toolbar);
-    btnBlur = new QPushButton("高斯模糊", toolbar);  // 新增模糊按钮
+
     // 操作按钮
     btnSave = new QPushButton("保存", toolbar);
     btnCopy = new QPushButton("复制", toolbar);
@@ -72,329 +82,29 @@ void ScreenshotWidget::setupToolbar()
     layout->addWidget(btnArrow);
     layout->addWidget(btnText);
     layout->addWidget(btnPen);
-    layout->addWidget(btnMosaic);//马赛克按钮
-    layout->addWidget(btnBlur);  // 高斯模糊按钮
     layout->addSpacing(10);
     layout->addWidget(btnSave);
     layout->addWidget(btnCopy);
     layout->addWidget(btnCancel);
 
-    // 子工具栏（马赛克强度调节）
-    EffectToolbar = new QWidget(this);
-    EffectToolbar->setStyleSheet(
-        "QWidget { background-color: rgba(40, 40, 40, 200); border-radius: 5px; }"
-        "QPushButton { background-color: rgba(60, 60, 60, 255); color: white; "
-        "border: none; padding: 5px; border-radius: 3px; font-size: 13px; }"
-        "QPushButton:hover { background-color: rgba(80, 80, 80, 255); }"
-        "QPushButton:pressed { background-color: rgba(50, 50, 50, 255); }"
-        "QLabel { background-color: transparent; color: white; padding: 5px; font-size: 12px; }");
-
-    QHBoxLayout *EffectLayout = new QHBoxLayout(EffectToolbar);
-    EffectLayout->setSpacing(5);
-    EffectLayout->setContentsMargins(16, 8, 16, 8);
-
-    btnStrengthDown = new QPushButton("-", EffectToolbar);
-    strengthLabel = new QLabel("20(强）", EffectToolbar);
-    btnStrengthUp = new QPushButton("+", EffectToolbar);
-
-    EffectLayout->addWidget(new QLabel("模糊强度:", EffectToolbar));
-    EffectLayout->addWidget(btnStrengthDown);
-    EffectLayout->addWidget(strengthLabel);
-    EffectLayout->addWidget(btnStrengthUp);
-
-
-    // 连接信号与槽
+    // 连接信号
     connect(btnSave, &QPushButton::clicked, this, &ScreenshotWidget::saveScreenshot);
     connect(btnCopy, &QPushButton::clicked, this, &ScreenshotWidget::copyToClipboard);
     connect(btnCancel, &QPushButton::clicked, this, &ScreenshotWidget::cancelCapture);
 
     connect(btnRect, &QPushButton::clicked, this, [this]()
-            { currentDrawMode = Rectangle; toolbar->show(); EffectToolbar->hide(); });
+            { currentDrawMode = Rectangle; });
     connect(btnArrow, &QPushButton::clicked, this, [this]()
-            { currentDrawMode = Arrow; toolbar->show(); EffectToolbar->hide(); });
+            { currentDrawMode = Arrow; });
     connect(btnText, &QPushButton::clicked, this, [this]()
-            { currentDrawMode = Text; toolbar->show(); EffectToolbar->hide(); });
+            { currentDrawMode = Text; });
     connect(btnPen, &QPushButton::clicked, this, [this]()
-            { currentDrawMode = Pen; toolbar->show(); EffectToolbar->hide(); });
-    connect(btnMosaic, &QPushButton::clicked, this, [this]()
-            {
-                currentDrawMode = Mosaic;
-                toolbar->show(); // 保持主工具栏显示
-
-                // 切换马赛克工具栏的显示状态
-                // if (EffectToolbar->isVisible()) {
-                //     EffectToolbar->hide();
-                // } else {
-                //     // 获取马赛克按钮在屏幕中的位置
-                //     QPoint mosaicBtnPos = btnMosaic->mapToGlobal(QPoint(0, 0));
-                //     // 转换为当前widget的坐标
-                //     QPoint localPos = this->mapFromGlobal(mosaicBtnPos);
-
-                //     // 将马赛克工具栏放在马赛克按钮正下方
-                //     int x = localPos.x();
-                //     int y = localPos.y() + btnMosaic->height() + 5;
-
-                //     EffectToolbar->move(x, y);
-                //     EffectToolbar->show();
-                //     EffectToolbar->raise();
-
-                //     // 如果有已绘制的马赛克区域，立即更新预览
-                //     if (!EffectAreas.isEmpty()) {
-                //         update();
-                //     }
-                // }
-
-            });
-    connect(btnBlur, &QPushButton::clicked, this, [this]()
-            {
-                currentDrawMode = Blur;
-                toolbar->show(); // 保持主工具栏显示
-
-                // // 切换马赛克工具栏的显示状态
-                // if (EffectToolbar->isVisible()) {
-                //     EffectToolbar->hide();
-                // } else {
-                //     // 获取马赛克按钮在屏幕中的位置
-                //     QPoint BlurBtnPos = btnBlur->mapToGlobal(QPoint(0, 0));
-                //     // 转换为当前widget的坐标
-                //     QPoint localPos = this->mapFromGlobal(BlurBtnPos);
-
-                //     // 将马赛克工具栏放在马赛克按钮正下方
-                //     int x = localPos.x();
-                //     int y = localPos.y() + btnBlur->height() + 5;
-
-                //     EffectToolbar->move(x, y);
-                //     EffectToolbar->show();
-                //     EffectToolbar->raise();
-
-                //     // 如果有已绘制的马赛克区域，立即更新预览
-                //     if (!EffectAreas.isEmpty()) {
-                //         update();
-                //     }
-                // }
-
-            });
-    connect(btnStrengthUp, &QPushButton::clicked, this, &ScreenshotWidget::increaseEffectStrength);
-    connect(btnStrengthDown, &QPushButton::clicked, this, &ScreenshotWidget::decreaseEffectStrength);
+            { currentDrawMode = Pen; });
 
     toolbar->adjustSize();
-    EffectToolbar->adjustSize();
-
-    // 默认隐藏所有工具栏
     toolbar->hide();
-    EffectToolbar->hide();
 }
 
-void ScreenshotWidget::increaseEffectStrength()
-{
-    if (currentEffectStrength < 30) { // 最大强度限制
-        currentEffectStrength += 2;
-        updateStrengthLabel();
-
-        // 实时更新预览：如果正在绘制马赛克区域，更新最后一个区域的强度
-        if ((currentDrawMode == Mosaic || currentDrawMode == Blur) && !EffectAreas.isEmpty()) {
-            // 更新最后一个马赛克区域的强度
-            if (!EffectStrengths.isEmpty()) {
-                EffectStrengths.last() = currentEffectStrength;
-            }
-        }
-        update(); // 刷新显示
-    }
-}
-
-void ScreenshotWidget::decreaseEffectStrength()
-{
-    if (currentEffectStrength > 2) { // 最小强度限制
-        currentEffectStrength -= 2;
-        updateStrengthLabel();
-
-        // 实时更新预览：如果正在绘制马赛克区域，更新最后一个区域的强度
-        if ((currentDrawMode == Mosaic || currentDrawMode == Blur) && !EffectAreas.isEmpty()) {
-            // 更新最后一个马赛克区域的强度
-            if (!EffectStrengths.isEmpty()) {
-                EffectStrengths.last() = currentEffectStrength;
-            }
-        }
-        update(); // 刷新显示
-    }
-}
-
-void ScreenshotWidget::updateStrengthLabel()
-{
-    QString strengthText;
-    if (currentEffectStrength <= 8) {
-        strengthText = "弱";
-    } else if (currentEffectStrength <= 20) {
-        strengthText = "中";
-    } else {
-        strengthText = "强";
-    }
-    strengthLabel->setText(QString("%1 (%2)").arg(currentEffectStrength).arg(strengthText));
-}
-
-QPixmap ScreenshotWidget::applyEffect(const QPixmap &source, const QRect &area, int strength, DrawMode mode)
-{
-    if (area.isEmpty() || strength <= 0) {
-        return source;
-    }
-
-    switch (mode) {
-    case Mosaic:
-        return applyMosaic(source, area, strength);
-    case Blur:
-        return applyBlur(source, area, strength);
-    default:
-        return source;
-    }
-}
-
-QPixmap ScreenshotWidget::applyMosaic(const QPixmap &source, const QRect &area, int blockSize)
-{
-    if (area.isEmpty() || blockSize <= 0) {
-        return source;
-    }
-
-    QPixmap result = source;
-    QPainter painter(&result);
-    painter.setRenderHint(QPainter::Antialiasing, false);
-
-    // 确保马赛克区域在图片范围内
-    QRect validArea = area.intersected(source.rect());
-
-    // 遍历马赛克区域，按块处理
-    for (int x = validArea.left(); x < validArea.right(); x += blockSize) {
-        for (int y = validArea.top(); y < validArea.bottom(); y += blockSize) {
-            // 计算当前块的实际大小（边缘可能小于blockSize）
-            int currentBlockWidth = qMin(blockSize, validArea.right() - x);
-            int currentBlockHeight = qMin(blockSize, validArea.bottom() - y);
-
-            // 获取当前块的平均颜色
-            QRect blockRect(x, y, currentBlockWidth, currentBlockHeight);
-            QImage blockImage = source.copy(blockRect).toImage();
-
-            // 计算平均颜色
-            int totalRed = 0, totalGreen = 0, totalBlue = 0;
-            int pixelCount = currentBlockWidth * currentBlockHeight;
-
-            for (int i = 0; i < currentBlockWidth; ++i) {
-                for (int j = 0; j < currentBlockHeight; ++j) {
-                    QColor color = blockImage.pixelColor(i, j);
-                    totalRed += color.red();
-                    totalGreen += color.green();
-                    totalBlue += color.blue();
-                }
-            }
-
-            QColor averageColor(
-                totalRed / pixelCount,
-                totalGreen / pixelCount,
-                totalBlue / pixelCount
-                );
-
-            // 用平均颜色填充整个块
-            painter.fillRect(blockRect, averageColor);
-        }
-    }
-
-    painter.end();
-    return result;
-}
-// 高斯模糊效果算法
-QPixmap ScreenshotWidget::applyBlur(const QPixmap &source, const QRect &area, int radius)
-{
-    if (area.isEmpty() || radius <= 0) {
-        return source;
-    }
-
-    QPixmap result = source;
-
-    // 确保模糊区域在图片范围内
-    QRect validArea = area.intersected(source.rect());
-    if (validArea.isEmpty()) {
-        return result;
-    }
-
-    // 提取要模糊的区域
-    QImage sourceImage = source.copy(validArea).toImage();
-    QImage blurredImage(sourceImage.size(), QImage::Format_ARGB32);
-
-    // 计算高斯核
-    int kernelSize = radius * 2 + 1;
-    QVector<double> kernel(kernelSize);
-    double sigma = radius / 3.0;  // 标准差
-    double sum = 0.0;
-
-    // 生成高斯核
-    for (int i = 0; i < kernelSize; ++i) {
-        int x = i - radius;
-        kernel[i] = qExp(-(x * x) / (2 * sigma * sigma)) / (qSqrt(2 * M_PI) * sigma);
-        sum += kernel[i];
-    }
-
-    // 归一化
-    for (int i = 0; i < kernelSize; ++i) {
-        kernel[i] /= sum;
-    }
-
-    // 水平模糊
-    QImage tempImage(sourceImage.size(), QImage::Format_ARGB32);
-    for (int y = 0; y < sourceImage.height(); ++y) {
-        for (int x = 0; x < sourceImage.width(); ++x) {
-            double r = 0, g = 0, b = 0, a = 0;
-
-            for (int i = -radius; i <= radius; ++i) {
-                int sampleX = qBound(0, x + i, sourceImage.width() - 1);
-                QColor color = sourceImage.pixelColor(sampleX, y);
-
-                double weight = kernel[i + radius];
-                r += color.red() * weight;
-                g += color.green() * weight;
-                b += color.blue() * weight;
-                a += color.alpha() * weight;
-            }
-
-            tempImage.setPixelColor(x, y, QColor(
-                                              qBound(0, int(r), 255),
-                                              qBound(0, int(g), 255),
-                                              qBound(0, int(b), 255),
-                                              qBound(0, int(a), 255)
-                                              ));
-        }
-    }
-
-    // 垂直模糊
-    for (int x = 0; x < tempImage.width(); ++x) {
-        for (int y = 0; y < tempImage.height(); ++y) {
-            double r = 0, g = 0, b = 0, a = 0;
-
-            for (int i = -radius; i <= radius; ++i) {
-                int sampleY = qBound(0, y + i, tempImage.height() - 1);
-                QColor color = tempImage.pixelColor(x, sampleY);
-
-                double weight = kernel[i + radius];
-                r += color.red() * weight;
-                g += color.green() * weight;
-                b += color.blue() * weight;
-                a += color.alpha() * weight;
-            }
-
-            blurredImage.setPixelColor(x, y, QColor(
-                                                 qBound(0, int(r), 255),
-                                                 qBound(0, int(g), 255),
-                                                 qBound(0, int(b), 255),
-                                                 qBound(0, int(a), 255)
-                                                 ));
-        }
-    }
-
-    // 将模糊后的图像绘制回原图
-    QPainter painter(&result);
-    painter.setRenderHint(QPainter::Antialiasing, false);
-    painter.drawImage(validArea, blurredImage);
-    painter.end();
-
-    return result;
-}
 void ScreenshotWidget::startCapture()
 {
     // 获取鼠标当前位置所在的屏幕
@@ -459,19 +169,19 @@ void ScreenshotWidget::startCaptureFullScreen()
     // 然后立即设置为全屏模式
     QTimer::singleShot(150, this, [this]()
                        {
-                           selectedRect = rect();
-                           selected = true;
-                           selecting = false;
-
-                           toolbar->setParent(this);
-                           toolbar->adjustSize();
-                           updateToolbarPosition();
-                           toolbar->setWindowFlags(Qt::Widget);
-                           toolbar->raise();
-                           toolbar->show();
-                           toolbar->activateWindow();
-
-                           update(); });
+        selectedRect = rect();
+        selected = true;
+        selecting = false;
+        
+        toolbar->setParent(this);
+        toolbar->adjustSize();
+        updateToolbarPosition();
+        toolbar->setWindowFlags(Qt::Widget);
+        toolbar->raise();
+        toolbar->show();
+        toolbar->activateWindow();
+        
+        update(); });
 }
 
 void ScreenshotWidget::paintEvent(QPaintEvent *event)
@@ -556,58 +266,7 @@ void ScreenshotWidget::paintEvent(QPaintEvent *event)
             }
         }
     }
-    // 在 paintEvent 函数中，修改模糊区域的绘制部分：
-    if (!EffectAreas.isEmpty() && selected)
-    {
-        for (int i = 0; i < EffectAreas.size(); ++i) {
-            const QRect &area = EffectAreas[i];
-            int strength =EffectStrengths[i]; // 获取对应的强度值
-             DrawMode mode = effectTypes[i];  // 获取保存的效果类型
 
-            // 将 area 转为物理坐标（用于从 screenPixmap 取图）
-            QRect logicalArea = area.intersected(selectedRect); // 限制在选区内
-            if (logicalArea.isEmpty()) continue;
-
-            QRect physicalArea(
-                logicalArea.x() * devicePixelRatio,
-                logicalArea.y() * devicePixelRatio,
-                logicalArea.width() * devicePixelRatio,
-                logicalArea.height() * devicePixelRatio);
-
-            // 从原始截图裁剪该区域
-            QPixmap sourcePart = screenPixmap.copy(physicalArea);
-            // 应用效果，传入强度值
-            QPixmap EffectPart = applyEffect(sourcePart, sourcePart.rect(), strength, mode);
-            // 绘制回逻辑坐标位置
-            painter.drawPixmap(logicalArea, EffectPart);
-        }
-    }
-
-    // 修改正在拖拽的模糊区域预览：
-    if ((currentDrawMode == Mosaic || currentDrawMode == Blur) && drawingEffect && selected)
-    {
-        QRect currentEffectRect = QRect(EffectStartPoint, EffectEndPoint).normalized()
-        .intersected(selectedRect);
-        if (!currentEffectRect.isEmpty())
-        {
-            QRect physicalRect(
-                currentEffectRect.x() * devicePixelRatio,
-                currentEffectRect.y() * devicePixelRatio,
-                currentEffectRect.width() * devicePixelRatio,
-                currentEffectRect.height() * devicePixelRatio);
-
-            QPixmap sourcePart = screenPixmap.copy(physicalRect);
-            // 使用当前强度值预览
-            QPixmap EffectPreview = applyEffect(sourcePart, sourcePart.rect(), currentEffectStrength, currentDrawMode);
-
-            painter.drawPixmap(currentEffectRect, EffectPreview);
-
-            // 可选：再叠加一个半透明红框表示边界
-            painter.setPen(QPen(QColor(255, 0, 0, 100), 2, Qt::DashLine));
-            painter.setBrush(Qt::NoBrush);
-            painter.drawRect(currentEffectRect);
-        }
-    }
     // 绘制放大镜
     if (showMagnifier && !selected)
     {
@@ -650,7 +309,7 @@ void ScreenshotWidget::paintEvent(QPaintEvent *event)
             // 绘制放大镜背景
             painter.setPen(QPen(QColor(0, 150, 255), 2));
             painter.setBrush(Qt::white);
-            painter.drawRect(magnifierX, magnifierY, magnifierSize, magnifierSize);
+            painter.drawRect(magnifierX, magnifierY, magnifiserSize, magnifierSize);
 
             // 绘制放大的图像
             QRect targetRect(magnifierX, magnifierY, magnifierSize, magnifierSize);
@@ -680,6 +339,13 @@ void ScreenshotWidget::paintEvent(QPaintEvent *event)
         painter.drawRect(rect.rect);
     }
 
+    //绘制所有文本
+    for(const DrawnText &text : texts){
+        //绘制文字
+        drawText(painter,text.rect.topLeft() + QPoint(5,text.fontSize + 5),
+                 text.text,text.color,text.font);
+    }
+
     // 绘制当前正在绘制的形状
     if (isDrawing && selected)
     {
@@ -700,23 +366,50 @@ void ScreenshotWidget::mousePressEvent(QMouseEvent *event)
 {
     if (event->button() == Qt::LeftButton)
     {
-        // 如果已经选中区域且处于图形绘制模式
-        if (selected && (currentDrawMode == Rectangle || currentDrawMode == Arrow))
+        //检查是否点击了已存在的文字
+        if(selected && !isTextInputActive){
+            for(int i = texts.size() - 1; i >= 0; i--){
+                if(texts[i].rect.contains(event->pos())){
+                    //开始拖拽文字
+                    isTextMoving = true;
+                    movingText = &texts[i];
+                    dragStartOffset = event->pos() - texts[i].rect.topLeft();
+                    setCursor(Qt::ClosedHandCursor);
+
+                    currentDrawMode = None;
+                    isDrawing = false;
+                    update();
+                    return;
+                }
+            }
+        }
+
+        // 如果已经选中区域且处于绘制模式
+        if (selected && currentDrawMode != None)
         {
             isDrawing = true;
             drawStartPoint = event->pos();
             drawEndPoint = event->pos();
+            //如果是文本模式
+            if(currentDrawMode==Text){
+                //文本模式：显示输入框
+                textInputPosition = event->pos();
+                textInput->move(event->pos());
+                textInput->resize(200,30);
+                textInput->show();
+                textInput->setFocus();
+                isTextInputActive = true;
+            }
+            else{
+                //其他绘制模式
+                isDrawing = true;
+                drawStartPoint = event->pos();
+                drawEndPoint = event->pos();
+            }
         }
-        //如果已经选中区域且处于马赛克或者高斯模糊模式
-        else if ((currentDrawMode == Mosaic || currentDrawMode == Blur)&& selected) {
-            // 开始绘制马赛克和高斯模糊的区域
-            EffectStartPoint = event->pos();
-            EffectEndPoint = event->pos();
-            drawingEffect = true;
-            EffectToolbar->hide(); // 开始绘制时隐藏强度工具栏
-        } else {
-            // 否则开始选择选择新区域
-
+        // 否则开始新的区域选择
+        else if (!selected)
+        {
             startPoint = event->pos();
             endPoint = event->pos();
             currentMousePos = event->pos();
@@ -724,21 +417,19 @@ void ScreenshotWidget::mousePressEvent(QMouseEvent *event)
             selected = false;
             // showMagnifier已经在startCapture时设置为true，这里不需要重复设置
             toolbar->hide();
-            showMagnifier = true;
-            toolbar->hide();
-            EffectAreas.clear(); // 清除之前的模糊区域
-            EffectToolbar->hide(); // 隐藏马赛克工具栏
-            EffectAreas.clear();
-            EffectStrengths.clear();
-            effectTypes.clear();  // 清除效果类型
         }
         update();
     }
+
 }
 
 void ScreenshotWidget::mouseMoveEvent(QMouseEvent *event)
 {
     currentMousePos = event->pos();
+
+    if(isTextInputActive){
+        return;
+    }
 
     if (selecting)
     {
@@ -751,38 +442,58 @@ void ScreenshotWidget::mouseMoveEvent(QMouseEvent *event)
         drawEndPoint = event->pos();
         update();
     }
-    else if (drawingEffect &&(currentDrawMode == Mosaic || currentDrawMode == Blur) )
-    {
-        EffectEndPoint = event->pos();
-        update();
-    }
     else if (!selected)
     {
         // 在框选前的鼠标移动时也触发更新，以显示放大镜
         update();
     }
-}
+    else if(isTextMoving && movingText){
+        //拖拽移动文字：实时更新位置
+        QPoint newPos = event->pos() - dragStartOffset;
 
+        //确保文字不会移出屏幕边界
+        newPos.setX(qMax(0,qMin(newPos.x(),width() - movingText->rect.width())));
+        newPos.setY(qMax(0,qMin(newPos.y(),height() - movingText->rect.height())));
+
+        movingText->rect.moveTopLeft(newPos);
+        movingText->position = newPos;
+        update();
+    }
+    else {
+        //检查鼠标是否悬停在文字上
+        bool overText = false;
+        for(const DrawnText &text : texts){
+            if(text.rect.contains(event->pos())){
+                setCursor(Qt::PointingHandCursor);
+                overText = true;
+                break;
+            }
+        }
+        if(!overText){
+            setCursor(Qt::CrossCursor);
+        }
+    }
+}
 
 void ScreenshotWidget::mouseReleaseEvent(QMouseEvent *event)
 {
     if (event->button() == Qt::LeftButton)
     {
-        if (drawingEffect && (currentDrawMode == Mosaic || currentDrawMode == Blur)) {
-            // 完成模糊区域绘制
-            drawingEffect = false;
-            QRect EffectRect = QRect(EffectStartPoint, EffectEndPoint).normalized();
-            if (EffectRect.width() > 5 && EffectRect.height() > 5) {
-                EffectAreas.append(EffectRect);
-                EffectStrengths.append(currentEffectStrength); // 保存当前强度
-                effectTypes.append(currentDrawMode);  // 保存效果类型
-                // 显示强度调节工具栏
-                updateEffectToolbarPosition();
-                EffectToolbar->show();
-                EffectToolbar->raise();
-                // 立即更新显示，确保新区域可见
-                update();
+        if (selecting)
+        {
+            selecting = false;
+            selected = true;
+            showMagnifier = false;
+            selectedRect = QRect(startPoint, endPoint).normalized();
+
+            // 显示工具栏
+            if (!selectedRect.isEmpty())
+            {
+                updateToolbarPosition();
+                toolbar->show();
             }
+
+            update();
         }
         else if (isDrawing)
         {
@@ -807,29 +518,17 @@ void ScreenshotWidget::mouseReleaseEvent(QMouseEvent *event)
                 rect.width = 3;
                 rectangles.append(rect);
             }
-
             update();
         }
-        //else if(selecting)
-        else  {
-            // 原有选择逻辑
-            selecting = false;
-            selected = true;
-            showMagnifier = false;
-            selectedRect = QRect(startPoint, endPoint).normalized();
-            EffectAreas.clear();
-            EffectStrengths.clear();
-            EffectToolbar->hide();
-
-            if (!selectedRect.isEmpty()) {
-                updateToolbarPosition();
-                toolbar->show();
-            }
+        else if(isTextMoving && movingText){
+            //松开鼠标左键，停止拖拽移动
+            isTextMoving = false;
+            movingText = nullptr;
+            setCursor(Qt::CrossCursor);
+            update();
         }
-        update();
     }
 }
-
 
 void ScreenshotWidget::keyPressEvent(QKeyEvent *event)
 {
@@ -872,40 +571,22 @@ void ScreenshotWidget::keyPressEvent(QKeyEvent *event)
             update();
         }
     }
-}
-void ScreenshotWidget::updateEffectToolbarPosition()
-{
-    if (EffectAreas.isEmpty()) return;
 
-    // 获取最后一个马赛克区域的位置
-    QRect lastEffectArea = EffectAreas.last();
-
-    int toolbarWidth = EffectToolbar->sizeHint().width();
-    int toolbarHeight = EffectToolbar->sizeHint().height();
-
-    // 将工具栏放在马赛克区域上方
-    int x = lastEffectArea.x();
-    int y = lastEffectArea.y() - toolbarHeight - 5;
-
-    // 如果上方空间不够，放在下方
-    if (y < 0) {
-        y = lastEffectArea.bottom() + 5;
+    //可以删除选中的文字
+    if((event->key() == Qt::Key_Delete || event->key() == Qt::Key_Backspace) && selected){
+        if(movingText){
+            for(int i=0; i<texts.size(); i++){
+                if(&texts[i] == movingText){
+                    texts.remove(i);
+                    isTextMoving = false;
+                    movingText = nullptr;
+                    setCursor(Qt::CrossCursor);
+                    update();
+                    break;
+                }
+            }
+        }
     }
-
-    // 确保不超出屏幕边界
-    if (x + toolbarWidth > width()) {
-        x = width() - toolbarWidth - 5;
-    }
-    if (x < 5) x = 5;
-    if (y + toolbarHeight > height()) {
-        y = height() - toolbarHeight - 5;
-    }
-
-    EffectToolbar->move(x, y);
-}
-void ScreenshotWidget::cancelCapture()
-{
-    close(); // 示例实现
 }
 
 void ScreenshotWidget::updateToolbarPosition()
@@ -918,27 +599,13 @@ void ScreenshotWidget::updateToolbarPosition()
     int toolbarWidth = toolbar->sizeHint().width();
     int toolbarHeight = toolbar->sizeHint().height();
 
-    // 获取当前屏幕的可用区域（避开 Dock 和菜单栏）
-    QScreen *screen = QGuiApplication::screenAt(geometry().center());
-    if (!screen) screen = QGuiApplication::primaryScreen();
-    
-    // availableGeometry 是全局坐标
-    QRect availableGeometry = screen->availableGeometry();
-    
-    // 窗口左上角的全局坐标
-    QPoint windowTopLeft = geometry().topLeft();
-    
-    // 可用区域相对于窗口的底部 Y 坐标
-    int availableBottomY = availableGeometry.bottom() - windowTopLeft.y();
-
     int x, y;
 
     // 如果是全屏截图或接近全屏，将工具栏放在屏幕底部中央偏上
     if (selectedRect.width() >= width() - 10 && selectedRect.height() >= height() - 10)
     {
         x = (width() - toolbarWidth) / 2;
-        // 使用 availableBottomY 确保不被 Dock 遮挡
-        y = availableBottomY - toolbarHeight - 20; 
+        y = height() - toolbarHeight - 60; // 增加底部边距，确保可见
     }
     else
     {
@@ -946,8 +613,8 @@ void ScreenshotWidget::updateToolbarPosition()
         x = selectedRect.x() + (selectedRect.width() - toolbarWidth) / 2;
         y = selectedRect.bottom() + 10;
 
-        // 如果超出可用区域底部，则放在选中区域上方
-        if (y + toolbarHeight > availableBottomY)
+        // 如果超出屏幕底部，则放在选中区域上方
+        if (y + toolbarHeight > height())
         {
             y = selectedRect.top() - toolbarHeight - 10;
         }
@@ -971,37 +638,18 @@ void ScreenshotWidget::saveScreenshot()
         return;
     }
 
-    qDebug() << "=== Save Screenshot Debug Info ===";
-    qDebug() << "Device Pixel Ratio:" << devicePixelRatio;
-    qDebug() << "Selected Rect (Logical):" << selectedRect;
-    qDebug() << "Screen Pixmap Size:" << screenPixmap.size();
-    qDebug() << "Screen Pixmap DPR:" << screenPixmap.devicePixelRatio();
-
     // 从原始截图中裁剪选中区域
     // screenPixmap中存储的是物理像素，需要将逻辑坐标转换为物理坐标
-    // 使用 qRound 避免精度丢失
-    int x = qRound(selectedRect.x() * devicePixelRatio);
-    int y = qRound(selectedRect.y() * devicePixelRatio);
-    int w = qRound(selectedRect.width() * devicePixelRatio);
-    int h = qRound(selectedRect.height() * devicePixelRatio);
-    
-    QRect physicalRect(x, y, w, h);
-    qDebug() << "Physical Rect:" << physicalRect;
+    QRect physicalRect(
+        selectedRect.x() * devicePixelRatio,
+        selectedRect.y() * devicePixelRatio,
+        selectedRect.width() * devicePixelRatio,
+        selectedRect.height() * devicePixelRatio);
 
-
-    // 从原始像素数据中裁剪
+    // 从原始像素数据中裁剪，不使用DPR
     QImage tempImage = screenPixmap.toImage();
-    qDebug() << "Temp Image Size:" << tempImage.size();
-    
     QImage croppedImage = tempImage.copy(physicalRect);
     QPixmap croppedPixmap = QPixmap::fromImage(croppedImage);
-    
-    // 强制将 DPR 设置为 1.0，以便我们直接在物理像素上进行绘制
-    // 这样可以避免 QPainter 自动应用 DPR 导致的双重缩放
-    croppedPixmap.setDevicePixelRatio(1.0);
-    
-    qDebug() << "Cropped Pixmap Size:" << croppedPixmap.size();
-    qDebug() << "Cropped Pixmap DPR:" << croppedPixmap.devicePixelRatio();
 
     // 在裁剪后的图片上绘制箭头和矩形
     QPainter painter(&croppedPixmap);
@@ -1010,25 +658,21 @@ void ScreenshotWidget::saveScreenshot()
     // 绘制所有箭头（需要调整坐标到裁剪区域）
     for (const DrawnArrow &arrow : arrows)
     {
-        // 计算相对于选中区域左上角的逻辑坐标
-        QPointF relativeStart = arrow.start - selectedRect.topLeft();
-        QPointF relativeEnd = arrow.end - selectedRect.topLeft();
-        
-        // 转换为物理坐标
-        QPointF adjustedStart = relativeStart * devicePixelRatio;
-        QPointF adjustedEnd = relativeEnd * devicePixelRatio;
-        
-        qDebug() << "Arrow:" << arrow.start << "->" << arrow.end;
-        qDebug() << "Relative:" << relativeStart << "->" << relativeEnd;
-        qDebug() << "Adjusted (Physical):" << adjustedStart << "->" << adjustedEnd;
-
-        drawArrow(painter, adjustedStart, adjustedEnd, arrow.color, arrow.width * devicePixelRatio, devicePixelRatio);
+        QPoint adjustedStart = QPoint(
+            (arrow.start.x() - selectedRect.x()) * devicePixelRatio,
+            (arrow.start.y() - selectedRect.y()) * devicePixelRatio
+        );
+        QPoint adjustedEnd = QPoint(
+            (arrow.end.x() - selectedRect.x()) * devicePixelRatio,
+            (arrow.end.y() - selectedRect.y()) * devicePixelRatio
+        );
+        drawArrow(painter, adjustedStart, adjustedEnd, arrow.color, arrow.width * devicePixelRatio);
     }
 
     // 绘制所有矩形
     for (const DrawnRectangle &rect : rectangles)
     {
-        QRectF adjustedRect(
+        QRect adjustedRect(
             (rect.rect.x() - selectedRect.x()) * devicePixelRatio,
             (rect.rect.y() - selectedRect.y()) * devicePixelRatio,
             rect.rect.width() * devicePixelRatio,
@@ -1039,30 +683,20 @@ void ScreenshotWidget::saveScreenshot()
         painter.drawRect(adjustedRect);
     }
 
-    painter.end();
+    //绘制文本
+    for(const DrawnText &text : texts){
+        QPoint adjustedPosition(
+             (text.position.x() - selectedRect.x()) * devicePixelRatio,
+             (text.position.y() - selectedRect.y()) * devicePixelRatio
+        );
 
-    // 应用马赛克效果（使用各自保存的强度）
-    if (!EffectAreas.isEmpty()) {
-        QPixmap processedPixmap = croppedPixmap;
-
-        for (int i = 0; i < EffectAreas.size(); ++i) {
-            const QRect &EffectArea =EffectAreas[i];
-            int strength = EffectStrengths[i];
-            DrawMode mode = effectTypes[i];  // 使用保存的效果类型
-
-            QRect relativeEffectArea = EffectArea.translated(-selectedRect.topLeft());
-            relativeEffectArea = QRect(
-                relativeEffectArea.x() * devicePixelRatio,
-                relativeEffectArea.y() * devicePixelRatio,
-                relativeEffectArea.width() * devicePixelRatio,
-                relativeEffectArea.height() * devicePixelRatio
-                );
-
-             processedPixmap = applyEffect(processedPixmap, relativeEffectArea, strength, mode);
-        }
-        croppedPixmap = processedPixmap;
+        //绘制文字
+        drawText(painter, adjustedPosition + QPoint(5,text.fontSize + 5),
+                 text.text, text.color, text.font);
     }
 
+
+    painter.end();
 
     // 获取默认保存路径
     QString defaultPath = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
@@ -1080,16 +714,11 @@ void ScreenshotWidget::saveScreenshot()
         if (croppedPixmap.save(fileName))
         {
             emit screenshotTaken();
-            hide();
-            QApplication::quit();
+            hide();               // 立即隐藏窗口
+            QApplication::quit(); // 直接退出应用程序
         }
     }
     // 如果用户取消保存，不做任何操作，保持当前状态（工具栏仍然可见）
-    else
-    {
-        hide();
-        QApplication::quit();
-    }
 }
 
 void ScreenshotWidget::copyToClipboard()
@@ -1099,27 +728,18 @@ void ScreenshotWidget::copyToClipboard()
         return;
     }
 
-    qDebug() << "=== Copy to Clipboard Debug Info ===";
-    qDebug() << "Device Pixel Ratio:" << devicePixelRatio;
-    
     // 从原始截图中裁剪选中区域
     // screenPixmap中存储的是物理像素，需要将逻辑坐标转换为物理坐标
-    int x = qRound(selectedRect.x() * devicePixelRatio);
-    int y = qRound(selectedRect.y() * devicePixelRatio);
-    int w = qRound(selectedRect.width() * devicePixelRatio);
-    int h = qRound(selectedRect.height() * devicePixelRatio);
-    
-    QRect physicalRect(x, y, w, h);
+    QRect physicalRect(
+        selectedRect.x() * devicePixelRatio,
+        selectedRect.y() * devicePixelRatio,
+        selectedRect.width() * devicePixelRatio,
+        selectedRect.height() * devicePixelRatio);
 
-
-    // 从原始像素数据中裁剪
+    // 从原始像素数据中裁剪，不使用DPR
     QImage tempImage = screenPixmap.toImage();
     QImage croppedImage = tempImage.copy(physicalRect);
     QPixmap croppedPixmap = QPixmap::fromImage(croppedImage);
-    
-    // 强制将 DPR 设置为 1.0，以便我们直接在物理像素上进行绘制
-    // 这样可以避免 QPainter 自动应用 DPR 导致的双重缩放
-    croppedPixmap.setDevicePixelRatio(1.0);
 
     // 在裁剪后的图片上绘制箭头和矩形
     QPainter painter(&croppedPixmap);
@@ -1128,21 +748,21 @@ void ScreenshotWidget::copyToClipboard()
     // 绘制所有箭头（需要调整坐标到裁剪区域）
     for (const DrawnArrow &arrow : arrows)
     {
-        // 计算相对于选中区域左上角的逻辑坐标
-        QPointF relativeStart = arrow.start - selectedRect.topLeft();
-        QPointF relativeEnd = arrow.end - selectedRect.topLeft();
-        
-        // 转换为物理坐标
-        QPointF adjustedStart = relativeStart * devicePixelRatio;
-        QPointF adjustedEnd = relativeEnd * devicePixelRatio;
-        
-        drawArrow(painter, adjustedStart, adjustedEnd, arrow.color, arrow.width * devicePixelRatio, devicePixelRatio);
+        QPoint adjustedStart = QPoint(
+            (arrow.start.x() - selectedRect.x()) * devicePixelRatio,
+            (arrow.start.y() - selectedRect.y()) * devicePixelRatio
+        );
+        QPoint adjustedEnd = QPoint(
+            (arrow.end.x() - selectedRect.x()) * devicePixelRatio,
+            (arrow.end.y() - selectedRect.y()) * devicePixelRatio
+        );
+        drawArrow(painter, adjustedStart, adjustedEnd, arrow.color, arrow.width * devicePixelRatio);
     }
 
     // 绘制所有矩形
     for (const DrawnRectangle &rect : rectangles)
     {
-        QRectF adjustedRect(
+        QRect adjustedRect(
             (rect.rect.x() - selectedRect.x()) * devicePixelRatio,
             (rect.rect.y() - selectedRect.y()) * devicePixelRatio,
             rect.rect.width() * devicePixelRatio,
@@ -1153,41 +773,37 @@ void ScreenshotWidget::copyToClipboard()
         painter.drawRect(adjustedRect);
     }
 
-    painter.end();
-
-    // 应用模糊效果（如果有模糊区域）
-    if (!EffectAreas.isEmpty()) {
-        QPixmap processedPixmap = croppedPixmap;
-
-        for (int i = 0; i < EffectAreas.size(); ++i) {
-            const QRect &EffectArea = EffectAreas[i];
-            int strength = EffectStrengths[i]; // 使用保存的强度值
-            DrawMode mode = effectTypes[i];  // 使用保存的效果类型
+    //绘制文本
+    for(const DrawnText &text : texts){
+        QPoint adjustedPosition(
+             (text.position.x() - selectedRect.x()) * devicePixelRatio,
+             (text.position.y() - selectedRect.y()) * devicePixelRatio
+        );
 
 
-            QRect relativeEffectArea = EffectArea.translated(-selectedRect.topLeft());
-            relativeEffectArea = QRect(
-                relativeEffectArea.x() * devicePixelRatio,
-                relativeEffectArea.y() * devicePixelRatio,
-                relativeEffectArea.width() * devicePixelRatio,
-                relativeEffectArea.height() * devicePixelRatio
-                );
-
-            processedPixmap = applyEffect(processedPixmap, relativeEffectArea, strength, mode);
-        }
-        croppedPixmap = processedPixmap;
+        //绘制文字
+        drawText(painter, adjustedPosition + QPoint(5,text.fontSize + 5),
+                 text.text, text.color, text.font);
     }
+    painter.end();
 
     // 复制到剪贴板
     QClipboard *clipboard = QGuiApplication::clipboard();
     clipboard->setPixmap(croppedPixmap);
 
     emit screenshotTaken();
-    hide();
-    QApplication::quit();
+    hide();               // 立即隐藏窗口
+    QApplication::quit(); // 直接退出应用程序
 }
 
-void ScreenshotWidget::drawArrow(QPainter &painter, const QPointF &start, const QPointF &end, const QColor &color, int width, double scale)
+void ScreenshotWidget::cancelCapture()
+{
+    emit screenshotCancelled();
+    hide();               // 立即隐藏窗口
+    QApplication::quit(); // 直接退出应用程序
+}
+
+void ScreenshotWidget::drawArrow(QPainter &painter, const QPoint &start, const QPoint &end, const QColor &color, int width)
 {
     painter.setPen(QPen(color, width));
     painter.setBrush(color);
@@ -1197,7 +813,7 @@ void ScreenshotWidget::drawArrow(QPainter &painter, const QPointF &start, const 
 
     // 计算箭头头部
     double angle = std::atan2(end.y() - start.y(), end.x() - start.x());
-    double arrowSize = 15.0 * scale; // 箭头大小
+    double arrowSize = 15.0; // 箭头大小
     double arrowAngle = M_PI / 6; // 箭头角度 (30度)
 
     QPointF arrowP1 = end - QPointF(
@@ -1214,5 +830,62 @@ void ScreenshotWidget::drawArrow(QPainter &painter, const QPointF &start, const 
     QPolygonF arrowHead;
     arrowHead << end << arrowP1 << arrowP2;
     painter.drawPolygon(arrowHead);
+}
+
+void ScreenshotWidget::setupTextInput(){
+    //添加文本输入框设置
+    textInput = new QLineEdit(this);
+    textInput->setStyleSheet(
+                "QLineEdit{ background-color:rgba(255,255,255,240);color: black; "
+                "border: 2px solid #0096FF; border-radius: 3px;padding: 5px;font-size: 14px; }"
+                "QLineEdit:focus{border-color:#FF5500;}");
+    textInput->setPlaceholderText("输入文字...");
+    textInput->hide();
+
+    //连接信号
+    connect(textInput,&QLineEdit::editingFinished,this,&ScreenshotWidget::onTextInputFinished);
+    connect(textInput,&QLineEdit::returnPressed,this,&ScreenshotWidget::onTextInputFinished);
+}
+
+void ScreenshotWidget::onTextInputFinished(){
+    if(!textInput || textInput->text().isEmpty()){
+        if(textInput){
+            textInput->hide();
+            textInput->clear();
+        }
+        isTextInputActive = false;
+        currentDrawMode = None;
+        return;
+    }
+    //保存文本
+    DrawnText drawnText;
+    drawnText.position = textInputPosition;
+    drawnText.text = textInput->text();
+    drawnText.color = QColor(255,0,0);
+    drawnText.fontSize = 14;
+    drawnText.font = QFont("Arial",drawnText.fontSize);
+
+    //计算文字矩形大小
+    QFontMetrics metrics(drawnText.font);
+    QRect textRect = metrics.boundingRect(drawnText.text);
+    textRect.moveTopLeft(textInputPosition);
+    textRect.adjust(-2,-2,2,2);
+    drawnText.rect = textRect;
+
+    texts.append(drawnText);
+
+    textInput->hide();
+    textInput->clear();
+    isTextInputActive = false;
+    currentDrawMode = None;
+    update();
+}
+
+
+//文本绘制函数
+void ScreenshotWidget::drawText(QPainter &painter, const QPoint &position, const QString &text, const QColor &color, const QFont &font){
+    painter.setPen(color);
+    painter.setFont(font);
+    painter.drawText(position,text);
 }
 
