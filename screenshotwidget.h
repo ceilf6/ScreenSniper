@@ -9,6 +9,7 @@
 #include <QVector>
 #include <QPoint>
 #include <QColor>
+#include <windows.h>
 
 // 绘制形状数据结构
 struct DrawnArrow
@@ -24,6 +25,12 @@ struct DrawnRectangle
     QRect rect;
     QColor color;
     int width;
+};
+
+// 存储窗口信息的结构体
+struct WindowInfo {
+    HWND hwnd;          // 窗口句柄
+    QRect rect;         // 窗口边界
 };
 
 class ScreenshotWidget : public QWidget
@@ -55,13 +62,24 @@ private:
     void copyToClipboard();
     void cancelCapture();
     void drawArrow(QPainter &painter, const QPointF &start, const QPointF &end, const QColor &color, int width, double scale = 1.0);
+    void captureWindow(QPoint mousePos);
+    // 枚举系统所有有效顶层窗口
+    QList<WindowInfo> enumAllValidWindows();
+    // 回调函数
+    static BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam);
+    // 精准获取窗口边界
+    QRect getAccurateWindowRect(HWND hwnd);
+
 
     QPixmap screenPixmap; // 屏幕截图
     QPoint startPoint;    // 选择起始点
     QPoint endPoint;      // 选择结束点
     bool selecting;       // 是否正在选择
     bool selected;        // 是否已选择完成
+    bool m_selectedWindow;  // 是否已选择窗口
     QRect selectedRect;   // 选中的矩形区域
+    QList<WindowInfo> m_validWindows;       // 有效窗口列表
+    WindowInfo m_hoverWindow;   //高亮窗口
 
     // 工具栏
     QWidget *toolbar;
@@ -105,6 +123,8 @@ private:
     bool isDrawing;
     QPoint drawStartPoint;
     QPoint drawEndPoint;
+
+
 };
 
 #endif // SCREENSHOTWIDGET_H
