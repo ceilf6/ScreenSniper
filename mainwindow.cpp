@@ -38,17 +38,14 @@ void MainWindow::setupUI()
     // 添加按钮
     QPushButton *btnFullScreen = new QPushButton("截取全屏 (Ctrl+Shift+F)", this);
     QPushButton *btnArea = new QPushButton("截取区域 (Ctrl+Shift+A)", this);
-    QPushButton *btnWindow = new QPushButton("截取窗口 (Ctrl+Shift+W)", this);
     QPushButton *btnSettings = new QPushButton("设置", this);
 
     btnFullScreen->setMinimumHeight(40);
     btnArea->setMinimumHeight(40);
-    btnWindow->setMinimumHeight(40);
     btnSettings->setMinimumHeight(40);
 
     layout->addWidget(btnFullScreen);
     layout->addWidget(btnArea);
-    layout->addWidget(btnWindow);
     layout->addWidget(btnSettings);
     layout->addStretch();
 
@@ -57,7 +54,6 @@ void MainWindow::setupUI()
     // 连接按钮信号
     connect(btnFullScreen, &QPushButton::clicked, this, &MainWindow::onCaptureScreen);
     connect(btnArea, &QPushButton::clicked, this, &MainWindow::onCaptureArea);
-    connect(btnWindow, &QPushButton::clicked, this, &MainWindow::onCaptureWindow);
     connect(btnSettings, &QPushButton::clicked, this, &MainWindow::onSettings);
 }
 
@@ -73,14 +69,12 @@ void MainWindow::setupTrayIcon()
 
     QAction *actionFullScreen = new QAction("截取全屏", this);
     QAction *actionArea = new QAction("截取区域", this);
-    QAction *actionWindow = new QAction("截取窗口", this);
     QAction *actionShow = new QAction("显示主窗口", this);
     QAction *actionAbout = new QAction("关于", this);
     QAction *actionQuit = new QAction("退出", this);
 
     trayMenu->addAction(actionFullScreen);
     trayMenu->addAction(actionArea);
-    trayMenu->addAction(actionWindow);
     trayMenu->addSeparator();
     trayMenu->addAction(actionShow);
     trayMenu->addAction(actionAbout);
@@ -93,7 +87,6 @@ void MainWindow::setupTrayIcon()
     // 连接托盘信号
     connect(actionFullScreen, &QAction::triggered, this, &MainWindow::onCaptureScreen);
     connect(actionArea, &QAction::triggered, this, &MainWindow::onCaptureArea);
-    connect(actionWindow, &QAction::triggered, this, &MainWindow::onCaptureWindow);
     connect(actionShow, &QAction::triggered, this, &MainWindow::show);
     connect(actionAbout, &QAction::triggered, this, &MainWindow::onAbout);
     connect(actionQuit, &QAction::triggered, qApp, &QApplication::quit);
@@ -113,14 +106,14 @@ void MainWindow::onCaptureScreen()
 
     // 每次都重新创建截图窗口
     ScreenshotWidget *widget = new ScreenshotWidget();
+    //结束时会卡一下，看不到写的信息，所以直接注释掉了，后续可以加类似飞书的消息提示
+//    connect(widget, &ScreenshotWidget::screenshotTaken, this, [this]()
+//            {
+//        //show();
+//        trayIcon->showMessage("截图成功", "全屏截图已保存", QSystemTrayIcon::Information, 2000); });
 
-    connect(widget, &ScreenshotWidget::screenshotTaken, this, [this]()
-            {
-        show();
-        trayIcon->showMessage("截图成功", "全屏截图已保存", QSystemTrayIcon::Information, 2000); });
-
-    connect(widget, &ScreenshotWidget::screenshotCancelled, this, [this]()
-            { show(); });
+//    connect(widget, &ScreenshotWidget::screenshotCancelled, this, [this]()
+//            { show(); });
 
     // 延迟让窗口完全隐藏后再截图
     QTimer::singleShot(300, widget, [widget]()
@@ -134,14 +127,14 @@ void MainWindow::onCaptureArea()
 
     // 每次都重新创建截图窗口
     ScreenshotWidget *widget = new ScreenshotWidget();
+    //结束时会卡一下，看不到写的信息，所以直接注释掉了，后续可以加类似飞书的消息提示
+//    connect(widget, &ScreenshotWidget::screenshotTaken, this, [this]()
+//            {
+//        show();
+//        trayIcon->showMessage("截图成功", "区域截图已保存到剪赴板", QSystemTrayIcon::Information, 2000); });
 
-    connect(widget, &ScreenshotWidget::screenshotTaken, this, [this]()
-            {
-        show();
-        trayIcon->showMessage("截图成功", "区域截图已保存到剪赴板", QSystemTrayIcon::Information, 2000); });
-
-    connect(widget, &ScreenshotWidget::screenshotCancelled, this, [this]()
-            { show(); });
+//    connect(widget, &ScreenshotWidget::screenshotCancelled, this, [this]()
+//            { show(); });
 
     // 延迟让窗口完全隐藏后再截图
     QTimer::singleShot(300, widget, &ScreenshotWidget::startCapture);
@@ -149,7 +142,7 @@ void MainWindow::onCaptureArea()
 
 void MainWindow::onCaptureWindow()
 {
-    QMessageBox::information(this, "提示", "窗口截图功能开发中...");
+    onCaptureArea();
 }
 
 void MainWindow::onSettings()
@@ -167,7 +160,6 @@ void MainWindow::onAbout()
                        "<ul>"
                        "<li>全屏截图</li>"
                        "<li>区域截图</li>"
-                       "<li>窗口截图</li>"
                        "<li>图像编辑</li>"
                        "</ul>");
 }
