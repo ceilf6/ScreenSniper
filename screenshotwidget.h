@@ -1,6 +1,8 @@
 #ifndef SCREENSHOTWIDGET_H
 #define SCREENSHOTWIDGET_H
 
+#include "pinwidget.h"
+
 #include <QWidget>
 #include <QPixmap>
 #include <QRect>
@@ -53,6 +55,15 @@ struct DrawnPenStroke
     QVector<QPoint> points;
     QColor color;
     int width;
+};
+
+// 窗口信息结构体
+struct WindowInfo
+{
+    HWND hwnd;
+    QString title;
+    QRect rect;
+    bool isValid() const { return !title.isEmpty() && rect.isValid(); }
 };
 
 class ScreenshotWidget : public QWidget
@@ -141,6 +152,15 @@ private:
     void editExistingText(int textIndex);
     void handleNoneMode(const QPoint& clickPos);
 
+    void pinToDesktop();
+    void captureWindow(QPoint mousePos);
+    // 枚举系统所有有效顶层窗口
+    QList<WindowInfo> enumAllValidWindows();
+    // 回调函数
+    static BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam);
+    // 精准获取窗口边界
+    QRect getAccurateWindowRect(HWND hwnd);
+
 
 
     //画笔相关函数
@@ -166,6 +186,7 @@ private:
     QPushButton* btnPen;   // 画笔工具
     QPushButton* btnMosaic;  // 马赛克按钮
     QPushButton* btnBlur;//高斯模糊按钮
+    QPushButton *btnPin; //Pin到桌面按钮
 
     // 尺寸显示标签
     QLabel* sizeLabel;

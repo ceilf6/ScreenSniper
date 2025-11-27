@@ -11,10 +11,12 @@ CONFIG += c++17
 SOURCES += \
     main.cpp \
     mainwindow.cpp \
+    pinwidget.cpp \
     screenshotwidget.cpp
 
 HEADERS += \
     mainwindow.h \
+    pinwidget.h \
     screenshotwidget.h
 
 FORMS += \
