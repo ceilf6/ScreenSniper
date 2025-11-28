@@ -1,0 +1,51 @@
+# 编译输出文件
+*.o
+*.obj
+*.lo
+*.slo
+*.so
+*.dylib
+*.dll
+*.a
+*.la
+*.lai
+*.exe
+
+# Qt 相关
+moc_*.cpp
+moc_*.h
+qrc_*.cpp
+ui_*.h
+*.autosave
+*.pro.user
+*.pro.user.*
+.qmake.stash
+
+# 构建目录
+build/
+build-*/
+debug/
+release/
+bin/
+lib/
+
+# IDE 配置文件
+.vscode/
+.idea/
+*.sublime-*
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+*.dmg
+
+# Windows
+Thumbs.db
+desktop.ini
+
+# 临时文件
+*.log
+*.tmp
+*.temp

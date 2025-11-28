@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/icons">
+        <!-- 这里可以添加图标资源，暂时使用占位符 -->
+        <!-- <file>app_icon.png</file> -->
+    </qresource>
+</RCC>
