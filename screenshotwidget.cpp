@@ -2320,7 +2320,17 @@ QList<WindowInfo> ScreenshotWidget::enumAllValidWindows()
 
             WindowInfo info;
             info.title = "Window"; // Dummy title for isValid()
-            info.rect = QRect(bounds.origin.x, bounds.origin.y, bounds.size.width, bounds.size.height);
+
+            // CoreGraphics 使用以屏幕左下角为原点的坐标系，Qt 使用左上角为原点，需翻转 Y 轴。
+            CGRect mainBounds = CGDisplayBounds(CGMainDisplayID());
+            double mainHeight = mainBounds.size.height;
+
+            int qtX = static_cast<int>(bounds.origin.x);
+            int qtY = static_cast<int>(mainHeight - (bounds.origin.y + bounds.size.height));
+            int qtW = static_cast<int>(bounds.size.width);
+            int qtH = static_cast<int>(bounds.size.height);
+
+            info.rect = QRect(qtX, qtY, qtW, qtH);
             
             if (info.rect.width() < 10 || info.rect.height() < 10) continue;
             
