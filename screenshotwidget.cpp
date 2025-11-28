@@ -96,8 +96,7 @@ void ScreenshotWidget::setupToolbar()
     btnArrow = new QPushButton("箭头", toolbar);
     btnText = new QPushButton("文字", toolbar);
     btnPen = new QPushButton("画笔", toolbar);
-    btnMosaic = new QPushButton("马赛克", toolbar);
-    btnBlur = new QPushButton("高斯模糊", toolbar);  // 新增模糊按钮
+
     // 操作按钮
     btnSave = new QPushButton("保存", toolbar);
     btnCopy = new QPushButton("复制", toolbar);
@@ -109,36 +108,13 @@ void ScreenshotWidget::setupToolbar()
     layout->addWidget(btnArrow);
     layout->addWidget(btnText);
     layout->addWidget(btnPen);
-    layout->addWidget(btnMosaic);//马赛克按钮
-    layout->addWidget(btnBlur);  // 高斯模糊按钮
     layout->addSpacing(10);
     layout->addWidget(btnSave);
     layout->addWidget(btnCopy);
     layout->addWidget(btnPin);
     layout->addWidget(btnCancel);
 
-    // 子工具栏（马赛克强度调节）
-    EffectToolbar = new QWidget(this);
-    EffectToolbar->setStyleSheet(
-        "QWidget { background-color: rgba(40, 40, 40, 200); border-radius: 5px; }"
-        "QPushButton { background-color: rgba(60, 60, 60, 255); color: white; "
-        "border: none; padding: 5px; border-radius: 3px; font-size: 13px; }"
-        "QPushButton:hover { background-color: rgba(80, 80, 80, 255); }"
-        "QPushButton:pressed { background-color: rgba(50, 50, 50, 255); }"
-        "QLabel { background-color: transparent; color: white; padding: 5px; font-size: 12px; }");
 
-    QHBoxLayout* EffectLayout = new QHBoxLayout(EffectToolbar);
-    EffectLayout->setSpacing(5);
-    EffectLayout->setContentsMargins(16, 8, 16, 8);
-
-    btnStrengthDown = new QPushButton("-", EffectToolbar);
-    strengthLabel = new QLabel("20(强）", EffectToolbar);
-    btnStrengthUp = new QPushButton("+", EffectToolbar);
-
-    EffectLayout->addWidget(new QLabel("模糊强度:", EffectToolbar));
-    EffectLayout->addWidget(btnStrengthDown);
-    EffectLayout->addWidget(strengthLabel);
-    EffectLayout->addWidget(btnStrengthUp);
 
 
     // 连接信号与槽
@@ -214,64 +190,8 @@ void ScreenshotWidget::setupToolbar()
                         }
                     }
                 });
-    connect(btnMosaic, &QPushButton::clicked, this, [this]()
-        {
-            currentDrawMode = Mosaic;
-            toolbar->show(); // 保持主工具栏显示
 
-            // 切换马赛克工具栏的显示状态
-            // if (EffectToolbar->isVisible()) {
-            //     EffectToolbar->hide();
-            // } else {
-            //     // 获取马赛克按钮在屏幕中的位置
-            //     QPoint mosaicBtnPos = btnMosaic->mapToGlobal(QPoint(0, 0));
-            //     // 转换为当前widget的坐标
-            //     QPoint localPos = this->mapFromGlobal(mosaicBtnPos);
 
-            //     // 将马赛克工具栏放在马赛克按钮正下方
-            //     int x = localPos.x();
-            //     int y = localPos.y() + btnMosaic->height() + 5;
-
-            //     EffectToolbar->move(x, y);
-            //     EffectToolbar->show();
-            //     EffectToolbar->raise();
-
-            //     // 如果有已绘制的马赛克区域，立即更新预览
-            //     if (!EffectAreas.isEmpty()) {
-            //         update();
-            //     }
-            // }
-
-        });
-    connect(btnBlur, &QPushButton::clicked, this, [this]()
-        {
-            currentDrawMode = Blur;
-            toolbar->show(); // 保持主工具栏显示
-
-            // // 切换马赛克工具栏的显示状态
-            // if (EffectToolbar->isVisible()) {
-            //     EffectToolbar->hide();
-            // } else {
-            //     // 获取马赛克按钮在屏幕中的位置
-            //     QPoint BlurBtnPos = btnBlur->mapToGlobal(QPoint(0, 0));
-            //     // 转换为当前widget的坐标
-            //     QPoint localPos = this->mapFromGlobal(BlurBtnPos);
-
-            //     // 将马赛克工具栏放在马赛克按钮正下方
-            //     int x = localPos.x();
-            //     int y = localPos.y() + btnBlur->height() + 5;
-
-            //     EffectToolbar->move(x, y);
-            //     EffectToolbar->show();
-            //     EffectToolbar->raise();
-
-            //     // 如果有已绘制的马赛克区域，立即更新预览
-            //     if (!EffectAreas.isEmpty()) {
-            //         update();
-            //     }
-            // }
-
-        });
     connect(btnStrengthUp, &QPushButton::clicked, this, &ScreenshotWidget::increaseEffectStrength);
     connect(btnStrengthDown, &QPushButton::clicked, this, &ScreenshotWidget::decreaseEffectStrength);
 
@@ -283,218 +203,8 @@ void ScreenshotWidget::setupToolbar()
     EffectToolbar->hide();
 }
 
-void ScreenshotWidget::increaseEffectStrength()
-{
-    if (currentEffectStrength < 30) { // 最大强度限制
-        currentEffectStrength += 2;
-        updateStrengthLabel();
 
-        // 实时更新预览：如果正在绘制马赛克区域，更新最后一个区域的强度
-        if ((currentDrawMode == Mosaic || currentDrawMode == Blur) && !EffectAreas.isEmpty()) {
-            // 更新最后一个马赛克区域的强度
-            if (!EffectStrengths.isEmpty()) {
-                EffectStrengths.last() = currentEffectStrength;
-            }
-        }
-        update(); // 刷新显示
-    }
-}
 
-void ScreenshotWidget::decreaseEffectStrength()
-{
-    if (currentEffectStrength > 2) { // 最小强度限制
-        currentEffectStrength -= 2;
-        updateStrengthLabel();
-
-        // 实时更新预览：如果正在绘制马赛克区域，更新最后一个区域的强度
-        if ((currentDrawMode == Mosaic || currentDrawMode == Blur) && !EffectAreas.isEmpty()) {
-            // 更新最后一个马赛克区域的强度
-            if (!EffectStrengths.isEmpty()) {
-                EffectStrengths.last() = currentEffectStrength;
-            }
-        }
-        update(); // 刷新显示
-    }
-}
-
-void ScreenshotWidget::updateStrengthLabel()
-{
-    QString strengthText;
-    if (currentEffectStrength <= 8) {
-        strengthText = "弱";
-    }
-    else if (currentEffectStrength <= 20) {
-        strengthText = "中";
-    }
-    else {
-        strengthText = "强";
-    }
-    strengthLabel->setText(QString("%1 (%2)").arg(currentEffectStrength).arg(strengthText));
-}
-
-QPixmap ScreenshotWidget::applyEffect(const QPixmap& source, const QRect& area, int strength, DrawMode mode)
-{
-    if (area.isEmpty() || strength <= 0) {
-        return source;
-    }
-
-    switch (mode) {
-    case Mosaic:
-        return applyMosaic(source, area, strength);
-    case Blur:
-        return applyBlur(source, area, strength);
-    default:
-        return source;
-    }
-}
-
-QPixmap ScreenshotWidget::applyMosaic(const QPixmap& source, const QRect& area, int blockSize)
-{
-    if (area.isEmpty() || blockSize <= 0) {
-        return source;
-    }
-
-    QPixmap result = source;
-    QPainter painter(&result);
-    painter.setRenderHint(QPainter::Antialiasing, false);
-
-    // 确保马赛克区域在图片范围内
-    QRect validArea = area.intersected(source.rect());
-
-    // 遍历马赛克区域，按块处理
-    for (int x = validArea.left(); x < validArea.right(); x += blockSize) {
-        for (int y = validArea.top(); y < validArea.bottom(); y += blockSize) {
-            // 计算当前块的实际大小（边缘可能小于blockSize）
-            int currentBlockWidth = qMin(blockSize, validArea.right() - x);
-            int currentBlockHeight = qMin(blockSize, validArea.bottom() - y);
-
-            // 获取当前块的平均颜色
-            QRect blockRect(x, y, currentBlockWidth, currentBlockHeight);
-            QImage blockImage = source.copy(blockRect).toImage();
-
-            // 计算平均颜色
-            int totalRed = 0, totalGreen = 0, totalBlue = 0;
-            int pixelCount = currentBlockWidth * currentBlockHeight;
-
-            for (int i = 0; i < currentBlockWidth; ++i) {
-                for (int j = 0; j < currentBlockHeight; ++j) {
-                    QColor color = blockImage.pixelColor(i, j);
-                    totalRed += color.red();
-                    totalGreen += color.green();
-                    totalBlue += color.blue();
-                }
-            }
-
-            QColor averageColor(
-                totalRed / pixelCount,
-                totalGreen / pixelCount,
-                totalBlue / pixelCount
-            );
-
-            // 用平均颜色填充整个块
-            painter.fillRect(blockRect, averageColor);
-        }
-    }
-
-    painter.end();
-    return result;
-}
-// 高斯模糊效果算法
-QPixmap ScreenshotWidget::applyBlur(const QPixmap& source, const QRect& area, int radius)
-{
-    if (area.isEmpty() || radius <= 0) {
-        return source;
-    }
-
-    QPixmap result = source;
-
-    // 确保模糊区域在图片范围内
-    QRect validArea = area.intersected(source.rect());
-    if (validArea.isEmpty()) {
-        return result;
-    }
-
-    // 提取要模糊的区域
-    QImage sourceImage = source.copy(validArea).toImage();
-    QImage blurredImage(sourceImage.size(), QImage::Format_ARGB32);
-
-    // 计算高斯核
-    int kernelSize = radius * 2 + 1;
-    QVector<double> kernel(kernelSize);
-    double sigma = radius / 3.0;  // 标准差
-    double sum = 0.0;
-
-    // 生成高斯核
-    for (int i = 0; i < kernelSize; ++i) {
-        int x = i - radius;
-        kernel[i] = qExp(-(x * x) / (2 * sigma * sigma)) / (qSqrt(2 * M_PI) * sigma);
-        sum += kernel[i];
-    }
-
-    // 归一化
-    for (int i = 0; i < kernelSize; ++i) {
-        kernel[i] /= sum;
-    }
-
-    // 水平模糊
-    QImage tempImage(sourceImage.size(), QImage::Format_ARGB32);
-    for (int y = 0; y < sourceImage.height(); ++y) {
-        for (int x = 0; x < sourceImage.width(); ++x) {
-            double r = 0, g = 0, b = 0, a = 0;
-
-            for (int i = -radius; i <= radius; ++i) {
-                int sampleX = qBound(0, x + i, sourceImage.width() - 1);
-                QColor color = sourceImage.pixelColor(sampleX, y);
-
-                double weight = kernel[i + radius];
-                r += color.red() * weight;
-                g += color.green() * weight;
-                b += color.blue() * weight;
-                a += color.alpha() * weight;
-            }
-
-            tempImage.setPixelColor(x, y, QColor(
-                qBound(0, int(r), 255),
-                qBound(0, int(g), 255),
-                qBound(0, int(b), 255),
-                qBound(0, int(a), 255)
-            ));
-        }
-    }
-
-    // 垂直模糊
-    for (int x = 0; x < tempImage.width(); ++x) {
-        for (int y = 0; y < tempImage.height(); ++y) {
-            double r = 0, g = 0, b = 0, a = 0;
-
-            for (int i = -radius; i <= radius; ++i) {
-                int sampleY = qBound(0, y + i, tempImage.height() - 1);
-                QColor color = tempImage.pixelColor(x, sampleY);
-
-                double weight = kernel[i + radius];
-                r += color.red() * weight;
-                g += color.green() * weight;
-                b += color.blue() * weight;
-                a += color.alpha() * weight;
-            }
-
-            blurredImage.setPixelColor(x, y, QColor(
-                qBound(0, int(r), 255),
-                qBound(0, int(g), 255),
-                qBound(0, int(b), 255),
-                qBound(0, int(a), 255)
-            ));
-        }
-    }
-
-    // 将模糊后的图像绘制回原图
-    QPainter painter(&result);
-    painter.setRenderHint(QPainter::Antialiasing, false);
-    painter.drawImage(validArea, blurredImage);
-    painter.end();
-
-    return result;
-}
 void ScreenshotWidget::startCapture()
 {
     // 获取鼠标当前位置所在的屏幕
@@ -658,58 +368,8 @@ void ScreenshotWidget::paintEvent(QPaintEvent* event)
             }
         }
     }
-    // 在 paintEvent 函数中，修改模糊区域的绘制部分：
-    if (!EffectAreas.isEmpty() && selected)
-    {
-        for (int i = 0; i < EffectAreas.size(); ++i) {
-            const QRect& area = EffectAreas[i];
-            int strength = EffectStrengths[i]; // 获取对应的强度值
-            DrawMode mode = effectTypes[i];  // 获取保存的效果类型
 
-           // 将 area 转为物理坐标（用于从 screenPixmap 取图）
-            QRect logicalArea = area.intersected(selectedRect); // 限制在选区内
-            if (logicalArea.isEmpty()) continue;
 
-            QRect physicalArea(
-                logicalArea.x() * devicePixelRatio,
-                logicalArea.y() * devicePixelRatio,
-                logicalArea.width() * devicePixelRatio,
-                logicalArea.height() * devicePixelRatio);
-
-            // 从原始截图裁剪该区域
-            QPixmap sourcePart = screenPixmap.copy(physicalArea);
-            // 应用效果，传入强度值
-            QPixmap EffectPart = applyEffect(sourcePart, sourcePart.rect(), strength, mode);
-            // 绘制回逻辑坐标位置
-            painter.drawPixmap(logicalArea, EffectPart);
-        }
-    }
-
-    // 修改正在拖拽的模糊区域预览：
-    if ((currentDrawMode == Mosaic || currentDrawMode == Blur) && drawingEffect && selected)
-    {
-        QRect currentEffectRect = QRect(EffectStartPoint, EffectEndPoint).normalized()
-            .intersected(selectedRect);
-        if (!currentEffectRect.isEmpty())
-        {
-            QRect physicalRect(
-                currentEffectRect.x() * devicePixelRatio,
-                currentEffectRect.y() * devicePixelRatio,
-                currentEffectRect.width() * devicePixelRatio,
-                currentEffectRect.height() * devicePixelRatio);
-
-            QPixmap sourcePart = screenPixmap.copy(physicalRect);
-            // 使用当前强度值预览
-            QPixmap EffectPreview = applyEffect(sourcePart, sourcePart.rect(), currentEffectStrength, currentDrawMode);
-
-            painter.drawPixmap(currentEffectRect, EffectPreview);
-
-            // 可选：再叠加一个半透明红框表示边界
-            painter.setPen(QPen(QColor(255, 0, 0, 100), 2, Qt::DashLine));
-            painter.setBrush(Qt::NoBrush);
-            painter.drawRect(currentEffectRect);
-        }
-    }
     // 绘制放大镜
     if (showMagnifier && !selected)
     {
@@ -958,15 +618,6 @@ void ScreenshotWidget::mousePressEvent(QMouseEvent* event)
             update();
         }
         //如果已经选中区域且处于马赛克或者高斯模糊模式
-        else if ((currentDrawMode == Mosaic || currentDrawMode == Blur) && selected) {
-            // 开始绘制马赛克和高斯模糊的区域
-            EffectStartPoint = event->pos();
-            EffectEndPoint = event->pos();
-            drawingEffect = true;
-            if (EffectToolbar) {
-                EffectToolbar->hide(); // 开始绘制时隐藏强度工具栏
-            }
-        }
         //如果已经选中区域且处于画笔状态
         else if(currentDrawMode == Pen && selected){
 
@@ -1085,24 +736,7 @@ void ScreenshotWidget::mouseReleaseEvent(QMouseEvent* event)
 {
     if (event->button() == Qt::LeftButton)
     {
-        if (drawingEffect && (currentDrawMode == Mosaic || currentDrawMode == Blur)) {
-            // 完成模糊区域绘制
-            drawingEffect = false;
-            QRect EffectRect = QRect(EffectStartPoint, EffectEndPoint).normalized();
-            if (EffectRect.width() > 5 && EffectRect.height() > 5) {
-                EffectAreas.append(EffectRect);
-                EffectStrengths.append(currentEffectStrength); // 保存当前强度
-                effectTypes.append(currentDrawMode);  // 保存效果类型
-                // 显示强度调节工具栏
-                if (EffectToolbar) {
-                    updateEffectToolbarPosition();
-                    EffectToolbar->show();
-                    EffectToolbar->raise();
-                }
-                // 立即更新显示，确保新区域可见
-                update();
-            }
-        }
+
         else if (isDrawing)
         {
             if (currentDrawMode == Pen)
@@ -1253,36 +887,7 @@ void ScreenshotWidget::keyPressEvent(QKeyEvent* event)
         }
     }
 }
-void ScreenshotWidget::updateEffectToolbarPosition()
-{
-    if (EffectAreas.isEmpty() || !EffectToolbar) return;
 
-    // 获取最后一个马赛克区域的位置
-    QRect lastEffectArea = EffectAreas.last();
-
-    int toolbarWidth = EffectToolbar->sizeHint().width();
-    int toolbarHeight = EffectToolbar->sizeHint().height();
-
-    // 将工具栏放在马赛克区域上方
-    int x = lastEffectArea.x();
-    int y = lastEffectArea.y() - toolbarHeight - 5;
-
-    // 如果上方空间不够，放在下方
-    if (y < 0) {
-        y = lastEffectArea.bottom() + 5;
-    }
-
-    // 确保不超出屏幕边界
-    if (x + toolbarWidth > width()) {
-        x = width() - toolbarWidth - 5;
-    }
-    if (x < 5) x = 5;
-    if (y + toolbarHeight > height()) {
-        y = height() - toolbarHeight - 5;
-    }
-
-    EffectToolbar->move(x, y);
-}
 void ScreenshotWidget::cancelCapture()
 {
     close(); // 示例实现
@@ -1464,27 +1069,6 @@ void ScreenshotWidget::saveScreenshot()
 
     painter.end();
 
-    // 应用马赛克效果（使用各自保存的强度）
-    if (!EffectAreas.isEmpty()) {
-        QPixmap processedPixmap = croppedPixmap;
-
-        for (int i = 0; i < EffectAreas.size(); ++i) {
-            const QRect& EffectArea = EffectAreas[i];
-            int strength = EffectStrengths[i];
-            DrawMode mode = effectTypes[i];  // 使用保存的效果类型
-
-            QRect relativeEffectArea = EffectArea.translated(-selectedRect.topLeft());
-            relativeEffectArea = QRect(
-                relativeEffectArea.x() * devicePixelRatio,
-                relativeEffectArea.y() * devicePixelRatio,
-                relativeEffectArea.width() * devicePixelRatio,
-                relativeEffectArea.height() * devicePixelRatio
-            );
-
-            processedPixmap = applyEffect(processedPixmap, relativeEffectArea, strength, mode);
-        }
-        croppedPixmap = processedPixmap;
-    }
 
 
     // 获取默认保存路径
@@ -1617,28 +1201,7 @@ void ScreenshotWidget::copyToClipboard()
 
     painter.end();
 
-    // 应用模糊效果（如果有模糊区域）
-    if (!EffectAreas.isEmpty()) {
-        QPixmap processedPixmap = croppedPixmap;
 
-        for (int i = 0; i < EffectAreas.size(); ++i) {
-            const QRect& EffectArea = EffectAreas[i];
-            int strength = EffectStrengths[i]; // 使用保存的强度值
-            DrawMode mode = effectTypes[i];  // 使用保存的效果类型
-
-
-            QRect relativeEffectArea = EffectArea.translated(-selectedRect.topLeft());
-            relativeEffectArea = QRect(
-                relativeEffectArea.x() * devicePixelRatio,
-                relativeEffectArea.y() * devicePixelRatio,
-                relativeEffectArea.width() * devicePixelRatio,
-                relativeEffectArea.height() * devicePixelRatio
-            );
-
-            processedPixmap = applyEffect(processedPixmap, relativeEffectArea, strength, mode);
-        }
-        croppedPixmap = processedPixmap;
-    }
 
     // 复制到剪贴板
     QClipboard* clipboard = QGuiApplication::clipboard();
