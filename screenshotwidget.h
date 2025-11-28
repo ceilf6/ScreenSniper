@@ -62,17 +62,16 @@ struct DrawnPenStroke
 #endif
 
 // 窗口信息结构体
-struct WindowInfo
+typedef struct WindowInfo
 {
 #ifdef Q_OS_WIN
     HWND hwnd;
 #else
     size_t windowId;
 #endif
-    QString title;
     QRect rect;
-    bool isValid() const { return !title.isEmpty() && rect.isValid(); }
-};
+    bool isValid() const { return rect.isValid(); }
+}WindowInfo;
 
 class ScreenshotWidget : public QWidget
 {
@@ -112,6 +111,8 @@ private slots:
     void onFontSizeInputChanged();
 
 private:
+    //越界判断相关：
+    //水印相关
     void showWatermarkDialog();
     //高斯模糊相关函数：
     void increaseBlurStrength();
@@ -162,28 +163,52 @@ private:
     void handleNoneMode(const QPoint& clickPos);
 
     void pinToDesktop();
+    //窗口识别函数
     void captureWindow(QPoint mousePos);
-
+    //判断鼠标是否点击调节位置
+    void mouseIsAdjust(QPoint mousePos);
     // 枚举系统所有有效顶层窗口
     QList<WindowInfo> enumAllValidWindows();
 
 #ifdef Q_OS_WIN
     // 回调函数
     static BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam);
+    static BOOL CALLBACK EnumChildProc(HWND childHwnd, LPARAM lParam);
     // 精准获取窗口边界
     QRect getAccurateWindowRect(HWND hwnd);
+
 #endif
 
     //画笔相关函数
     void setupPenToolbar();
     void updatePenToolbarPosition();
 
-    QPixmap screenPixmap; // 屏幕截图
-    QPoint startPoint;    // 选择起始点
-    QPoint endPoint;      // 选择结束点
-    bool selecting;       // 是否正在选择
-    bool selected;        // 是否已选择完成
-    QRect selectedRect;   // 选中的矩形区域
+
+    //调整大小的方向和移动枚举
+    enum AdjectDirection{
+        TopLeftCorner,
+        TopRightCorner,
+        LeftBottom,
+        RightBottom,
+        LeftCenterPoint,
+        RightCenterPoint,
+        TopCenterPoint,
+        BottomCenterPoint,
+        MoveAll
+    };
+    enum AdjectDirection m_adjectDirection;
+
+    QPixmap screenPixmap;    // 屏幕截图
+    QPoint startPoint;       // 选择起始点
+    QPoint endPoint;         // 选择结束点
+    bool selecting;          // 是否正在选择
+    bool selected;           // 是否已选择完成
+    QRect selectedRect;      // 选中的矩形区域
+    QRect m_relativeDistance;//保存拉动时鼠标与startPos的距离
+    bool m_isadjust;         // 是否正在调整截取矩形大小
+    QList<WindowInfo> m_validWindows;   // 有效窗口列表
+    bool m_selectedWindow;   // 是否已选择窗口
+    WindowInfo m_hoverWindow;//高亮窗口
 
     // 工具栏
     QWidget* toolbar;
@@ -299,9 +324,10 @@ private:
     QPoint drawEndPoint;
 
     // 当前鼠标下的窗口矩形（自动吸附用）
-    QRect currentWindowRect;
+    //QRect currentWindowRect;
     //水印相关;
     QString watermarkText;
+    //QRect currentWindowRect;
 };
 
 #endif // SCREENSHOTWIDGET_H

@@ -34,6 +34,11 @@
 #include <QLineEdit>
 
 
+#ifdef Q_OS_WIN
+#include <psapi.h>
+#include <dwmapi.h>
+#endif
+
 #ifdef Q_OS_MAC
 #include <CoreGraphics/CoreGraphics.h>
 #endif
@@ -57,7 +62,10 @@ ScreenshotWidget::ScreenshotWidget(QWidget* parent)
     currentTextFont("Arial",18),
     currentTextColor(Qt::red),
     currentFontSize(18),
-    editingTextIndex(-1)
+    editingTextIndex(-1),
+    m_selectedWindow(true),
+    m_isadjust(false),
+    m_adjectDirection(TopLeftCorner)
 {
     setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint | Qt::Tool);
     setAttribute(Qt::WA_TranslucentBackground);
@@ -77,7 +85,8 @@ ScreenshotWidget::ScreenshotWidget(QWidget* parent)
     sizeLabel->setStyleSheet("QLabel { background-color: rgba(0, 0, 0, 180); color: white; "
         "padding: 5px; border-radius: 3px; font-size: 12px; }");
     sizeLabel->hide();
-
+    // 枚举系统所有有效窗口
+    m_validWindows = enumAllValidWindows();
     // 准备截图状态
 }
 
@@ -164,13 +173,14 @@ void ScreenshotWidget::setupToolbar()
     connect(btnCancel, &QPushButton::clicked, this, &ScreenshotWidget::cancelCapture);
 
     connect(btnRect, &QPushButton::clicked, this, [this]()
-        { currentDrawMode = Rectangle; toolbar->show(); EffectToolbar->hide(); });
+        { selected = true;currentDrawMode = Rectangle; toolbar->show(); EffectToolbar->hide(); });
     connect(btnEllipse, &QPushButton::clicked, this, [this]()
-        { currentDrawMode = Ellipse; toolbar->show(); EffectToolbar->hide(); });
+        { selected = true;currentDrawMode = Ellipse; toolbar->show(); EffectToolbar->hide(); });
     connect(btnArrow, &QPushButton::clicked, this, [this]()
-        { currentDrawMode = Arrow; toolbar->show(); EffectToolbar->hide(); });
+        { selected = true;currentDrawMode = Arrow; toolbar->show(); EffectToolbar->hide(); });
     connect(btnText, &QPushButton::clicked, this, [this]()
         {
+            selected = true;
             currentDrawMode = Text;
             toolbar->show();
             EffectToolbar->hide();
@@ -203,6 +213,7 @@ void ScreenshotWidget::setupToolbar()
         });
     connect(btnPen, &QPushButton::clicked, this, [this]()
                 {
+                    selected = true;
                     currentDrawMode = Pen;
                     toolbar->show();
                     EffectToolbar->hide();
@@ -233,6 +244,7 @@ void ScreenshotWidget::setupToolbar()
 
     connect(btnMosaic, &QPushButton::clicked, this, [this]()
         {
+            selected = true;
             currentDrawMode = Mosaic;
             toolbar->show(); // 保持主工具栏显示
 
@@ -262,6 +274,7 @@ void ScreenshotWidget::setupToolbar()
         });
     connect(btnBlur, &QPushButton::clicked, this, [this]()
         {
+            selected = true;
             currentDrawMode = Blur;
             toolbar->show(); // 保持主工具栏显示
 
@@ -300,11 +313,14 @@ void ScreenshotWidget::setupToolbar()
     // 默认隐藏所有工具栏
     toolbar->hide();
     EffectToolbar->hide();
+
+
 }
 
 
 void ScreenshotWidget::increaseEffectStrength()
 {
+    selected = true;
     if (currentEffectStrength < 30) { // 最大强度限制
         currentEffectStrength += 2;
         updateStrengthLabel();
@@ -322,6 +338,7 @@ void ScreenshotWidget::increaseEffectStrength()
 
 void ScreenshotWidget::decreaseEffectStrength()
 {
+    selected = true;
     if (currentEffectStrength > 2) { // 最小强度限制
         currentEffectStrength -= 2;
         updateStrengthLabel();
@@ -613,70 +630,78 @@ void ScreenshotWidget::paintEvent(QPaintEvent* event)
     painter.fillRect(rect(), QColor(0, 0, 0, 100));
 
     // 如果有选中区域，显示选中区域的原始图像
-    //if (selecting || selected)
+
+    QRect currentRect;
+    if (selecting)
     {
-        QRect currentRect;
-        if (selecting)
+        currentRect = QRect(startPoint, endPoint).normalized();
+    }
+    else
+    {
+        currentRect = selectedRect;
+    }
+
+    if (!currentRect.isEmpty())
+    {
+        // 显示选中区域的原始图像
+        // 将窗口坐标转换为截图坐标（考虑虚拟桌面偏移）
+        QPoint windowPos = geometry().topLeft();
+        QPoint offset = windowPos - virtualGeometryTopLeft;
+
+        QRect physicalRect(
+                    (currentRect.x() + offset.x()) * devicePixelRatio,
+                    (currentRect.y() + offset.y()) * devicePixelRatio,
+                    currentRect.width() * devicePixelRatio,
+                    currentRect.height() * devicePixelRatio);
+        painter.drawPixmap(currentRect, screenPixmap, physicalRect);
+
+        // 绘制选中框
+        QPen pen(QColor(0, 150, 255), 2);
+        painter.setPen(pen);
+        painter.drawRect(currentRect);
+
+        // 绘制尺寸信息
+        QString sizeText = QString("%1 x %2").arg(currentRect.width()).arg(currentRect.height());
+        sizeLabel->setText(sizeText);
+
+        // 调整标签位置
+        int labelX = currentRect.x();
+        int labelY = currentRect.y() - sizeLabel->height() - 5;
+        if (labelY < 0)
         {
-            currentRect = QRect(startPoint, endPoint).normalized();
+            labelY = currentRect.y() + 5;
         }
-        else
-        {
-            currentRect = selectedRect;
-        }
+        sizeLabel->move(labelX, labelY);
+        sizeLabel->adjustSize();
+        sizeLabel->show();
 
-        if (!currentRect.isEmpty())
-        {
-            // 显示选中区域的原始图像
-            // 将窗口坐标转换为截图坐标（考虑虚拟桌面偏移）
-            QPoint windowPos = geometry().topLeft();
-            QPoint offset = windowPos - virtualGeometryTopLeft;
+        // 绘制调整手柄
 
-            QRect physicalRect(
-                        (currentRect.x() + offset.x()) * devicePixelRatio,
-                        (currentRect.y() + offset.y()) * devicePixelRatio,
-                        currentRect.width() * devicePixelRatio,
-                        currentRect.height() * devicePixelRatio);
-            painter.drawPixmap(currentRect, screenPixmap, physicalRect);
+        int handleSize = 8;
+        painter.setBrush(QColor(0, 150, 255));
+        painter.setPen(Qt::white);
 
-            // 绘制选中框
-            QPen pen(QColor(0, 150, 255), 2);
-            painter.setPen(pen);
-            painter.drawRect(currentRect);
+        // 四个角
+        painter.drawRect(currentRect.left() - handleSize / 2, currentRect.top() - handleSize / 2,
+                         handleSize, handleSize);
+        painter.drawRect(currentRect.right() - handleSize / 2, currentRect.top() - handleSize / 2,
+                         handleSize, handleSize);
+        painter.drawRect(currentRect.left() - handleSize / 2, currentRect.bottom() - handleSize / 2,
+                         handleSize, handleSize);
+        painter.drawRect(currentRect.right() - handleSize / 2, currentRect.bottom() - handleSize / 2,
+                         handleSize, handleSize);
 
-            // 绘制尺寸信息
-            QString sizeText = QString("%1 x %2").arg(currentRect.width()).arg(currentRect.height());
-            sizeLabel->setText(sizeText);
+        // 四条边中心
+        painter.drawRect((currentRect.left() + currentRect.right() - handleSize) / 2, currentRect.top() - handleSize / 2,
+                         handleSize, handleSize);
+        painter.drawRect(currentRect.left() - handleSize / 2, (currentRect.top() + currentRect.bottom() - handleSize) / 2,
+                         handleSize, handleSize);
+        painter.drawRect((currentRect.left() + currentRect.right() - handleSize) / 2, currentRect.bottom() - handleSize / 2,
+                         handleSize, handleSize);
+        painter.drawRect(currentRect.right() - handleSize / 2, (currentRect.top() + currentRect.bottom() - handleSize) / 2,
+                         handleSize, handleSize);
 
-            // 调整标签位置
-            int labelX = currentRect.x();
-            int labelY = currentRect.y() - sizeLabel->height() - 5;
-            if (labelY < 0)
-            {
-                labelY = currentRect.y() + 5;
-            }
-            sizeLabel->move(labelX, labelY);
-            sizeLabel->adjustSize();
-            sizeLabel->show();
 
-            // 绘制调整手柄
-            if (selected)
-            {
-                int handleSize = 8;
-                painter.setBrush(QColor(0, 150, 255));
-                painter.setPen(Qt::white);
-
-                // 四个角
-                painter.drawRect(currentRect.left() - handleSize / 2, currentRect.top() - handleSize / 2,
-                    handleSize, handleSize);
-                painter.drawRect(currentRect.right() - handleSize / 2, currentRect.top() - handleSize / 2,
-                    handleSize, handleSize);
-                painter.drawRect(currentRect.left() - handleSize / 2, currentRect.bottom() - handleSize / 2,
-                    handleSize, handleSize);
-                painter.drawRect(currentRect.right() - handleSize / 2, currentRect.bottom() - handleSize / 2,
-                    handleSize, handleSize);
-            }
-        }
     }
 
 
@@ -809,7 +834,6 @@ void ScreenshotWidget::paintEvent(QPaintEvent* event)
         painter.setPen(QPen(ellipse.color, ellipse.width));
         painter.drawEllipse(ellipse.rect);
     }
-
     //绘制所有文本（限制在截图框范围内）
     if (selected) { // 只在选中区域后绘制文字
         for (const DrawnText& text : texts) {
@@ -905,6 +929,21 @@ void ScreenshotWidget::mousePressEvent(QMouseEvent* event)
         isTextMoving = false;
         QPoint clickPos = event->pos();
 
+
+        if(cursor().shape() != Qt::CrossCursor){
+            m_isadjust = true;
+            selecting = true;
+            selected = false;
+            if(cursor().shape() == Qt::SizeAllCursor){
+                m_relativeDistance.setX(event->pos().x() - startPoint.x());
+                m_relativeDistance.setY(event->pos().y() - startPoint.y());
+                m_relativeDistance.setWidth(abs(startPoint.x() - endPoint.x()));
+                m_relativeDistance.setHeight(abs(startPoint.y() - endPoint.y()));
+            }
+
+            toolbar->hide();
+        }
+
         // 处理文本输入框相关逻辑
         if (isTextInputActive && textInput && textInput->isVisible()) {
 
@@ -918,6 +957,7 @@ void ScreenshotWidget::mousePressEvent(QMouseEvent* event)
 
         // 检查是否点击了已存在的文字
         if (selected && !isTextInputActive) {
+
             for (int i = texts.size() - 1; i >= 0; i--) {
                 if (texts[i].rect.contains(clickPos)) {
                     // 开始拖拽文字
@@ -938,6 +978,7 @@ void ScreenshotWidget::mousePressEvent(QMouseEvent* event)
 
         // 如果已经选中区域且处于文字绘制模式
         if (currentDrawMode == Text && !isTextInputActive) {
+
             // 文本模式：显示输入框
             handleTextModeClick(clickPos);
             return;
@@ -997,12 +1038,25 @@ void ScreenshotWidget::mousePressEvent(QMouseEvent* event)
             currentPenStroke.clear();
             currentPenStroke.append(event->pos());
         }
-        else {
+        else if(!selected){
             // 否则开始选择选择新区域
 
-            startPoint = event->pos();
-            endPoint = event->pos();
-            currentMousePos = event->pos();
+            //是否处于调节位置
+            if(cursor().shape() != Qt::CrossCursor){
+                m_isadjust = true;
+                if(cursor().shape() == Qt::SizeAllCursor){
+                    m_relativeDistance.setX(event->pos().x() - startPoint.x());
+                    m_relativeDistance.setY(event->pos().y() - startPoint.y());
+                    m_relativeDistance.setWidth(abs(startPoint.x() - endPoint.x()));
+                    m_relativeDistance.setHeight(abs(startPoint.y() - endPoint.y()));
+                }
+                toolbar->hide();
+            }else{
+                startPoint = event->pos();
+                endPoint = event->pos();
+                currentMousePos = event->pos();
+            }
+
             selecting = true;
             selected = false;
             // showMagnifier已经在startCapture时设置为true，这里不需要重复设置
@@ -1035,7 +1089,15 @@ void ScreenshotWidget::mouseMoveEvent(QMouseEvent* event)
 
     if (selecting)
     {
-        endPoint = event->pos();
+        //关闭截取窗口
+        m_selectedWindow = false;
+        if(cursor().shape() != Qt::CrossCursor){
+            //更新坐标
+            mouseIsAdjust(event->pos());
+        }else{
+            endPoint = event->pos();
+        }
+
         showMagnifier = true;
         update();
     }
@@ -1062,6 +1124,23 @@ void ScreenshotWidget::mouseMoveEvent(QMouseEvent* event)
     }
     else if (!selected)
     {
+        //查询窗口
+        if(m_selectedWindow){
+            m_hoverWindow = WindowInfo(); // 重置
+            //captureWindow(event->globalPos());
+            #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+                captureWindow(event->globalPos());
+            #else
+                captureWindow(event->globalPosition().toPoint());
+            #endif
+            //获取窗口大小
+            if (m_hoverWindow.hwnd) {
+                selectedRect = getAccurateWindowRect(m_hoverWindow.hwnd);
+            }
+        }else{
+            //判断鼠标是否处于调节区域
+            mouseIsAdjust(event->pos());
+        }
         // 在框选前的鼠标移动时也触发更新，以显示放大镜
         captureWindow(event->pos());
         update();
@@ -1189,17 +1268,26 @@ void ScreenshotWidget::mouseReleaseEvent(QMouseEvent* event)
         else {
             // 原有选择逻辑
             selecting = false;
-            selected = true;
+            selected = false;
             showMagnifier = false;
-            
-            QRect dragRect = QRect(startPoint, endPoint).normalized();
+            //关闭调节
+            m_isadjust = false;
+            if(m_selectedWindow && (startPoint.x() == endPoint.x()) && (startPoint.y() == endPoint.y())){
+               m_selectedWindow = false;
+               startPoint.setX(selectedRect.x());
+               startPoint.setY(selectedRect.y());
+               endPoint.setX(startPoint.x()+selectedRect.width());
+               endPoint.setY(startPoint.y()+selectedRect.height());
+            }else{
+                selectedRect = QRect(startPoint, endPoint).normalized();
+            }
             
             // 如果是点击（拖拽距离很小）且有自动吸附的窗口，则使用吸附窗口
-            if (dragRect.width() < 5 && dragRect.height() < 5 && !currentWindowRect.isEmpty()) {
-                selectedRect = currentWindowRect;
-            } else {
-                selectedRect = dragRect;
-            }
+//            if (dragRect.width() < 5 && dragRect.height() < 5 && !currentWindowRect.isEmpty()) {
+//                selectedRect = currentWindowRect;
+//            } else {
+//                selectedRect = dragRect;
+//            }
 
             EffectAreas.clear();
             EffectStrengths.clear();
@@ -1506,8 +1594,6 @@ void ScreenshotWidget::saveScreenshot()
         }
         croppedPixmap = processedPixmap;
     }
-<<<<<<< HEAD
-=======
     // ==================== 嵌入水印 ====================
     if (!watermarkText.isEmpty()) {
         qDebug() << "开始嵌入水印:" << watermarkText;
@@ -1558,7 +1644,6 @@ void ScreenshotWidget::saveScreenshot()
     } else {
         qDebug() << "未设置水印内容";
     }
->>>>>>> MB
     // 获取默认保存路径
     QString defaultPath = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
     QString defaultFileName = defaultPath + "/screenshot_" +
@@ -2351,7 +2436,7 @@ void ScreenshotWidget::editExistingText(int textIndex)
 void ScreenshotWidget::pinToDesktop()
 {
     // 1. 检查是否有选区
-    if (selectedRect.isNull() || !selected) {
+    if (selectedRect.isNull()) {
         return;
     }
 
@@ -2378,10 +2463,7 @@ QList<WindowInfo> ScreenshotWidget::enumAllValidWindows()
 {
     QList<WindowInfo> windows;
 #ifdef Q_OS_WIN
-    // Windows implementation would go here if we had the Proc defined
-    // But since we don't have the Proc definition in this file (it was missing), 
-    // we can't easily restore it without the code. 
-    // Assuming the user only cares about macOS now as per request.
+    EnumWindows(EnumWindowsProc, reinterpret_cast<LPARAM>(&windows));
 #elif defined(Q_OS_MAC)
     CFArrayRef windowList = CGWindowListCopyWindowInfo(kCGWindowListOptionOnScreenOnly | kCGWindowListExcludeDesktopElements, kCGNullWindowID);
     if (windowList) {
@@ -2425,41 +2507,145 @@ QList<WindowInfo> ScreenshotWidget::enumAllValidWindows()
 
 void ScreenshotWidget::captureWindow(QPoint mousePos)
 {
-    if (selecting || selected || isDrawing || drawingEffect) return;
+    // 遍历窗口列表，找到鼠标所在的顶层窗口
+    for (const auto& window : m_validWindows) {
+        if (window.rect.contains(mousePos)) {
+            m_hoverWindow = window;
+            break; // 顶层窗口优先（枚举顺序为顶层在前）
+        }
+    }
 
-    QList<WindowInfo> windows = enumAllValidWindows();
-    
-    WindowInfo bestWindow;
-    int minArea = 2147483647; // INT_MAX
-    
-    // Map local mouse pos to global for comparison with CGWindowList coords
-    QPoint globalMousePos = mapToGlobal(mousePos);
+//    if (selecting || selected || isDrawing || drawingEffect) return;
 
-    for (const WindowInfo& info : windows) {
-        if (info.rect.contains(globalMousePos)) {
-            int area = info.rect.width() * info.rect.height();
-            if (area < minArea) {
-                minArea = area;
-                bestWindow = info;
+//    QList<WindowInfo> windows = enumAllValidWindows();
+    
+//    WindowInfo bestWindow;
+//    int minArea = 2147483647; // INT_MAX
+    
+//    // Map local mouse pos to global for comparison with CGWindowList coords
+//    QPoint globalMousePos = mapToGlobal(mousePos);
+
+//    for (const WindowInfo& info : windows) {
+//        if (info.rect.contains(globalMousePos)) {
+//            int area = info.rect.width() * info.rect.height();
+//            if (area < minArea) {
+//                minArea = area;
+//                bestWindow = info;
+//            }
+//        }
+//    }
+    
+//    if (bestWindow.isValid()) {
+//        // Convert global rect back to local coordinates
+//        QPoint localTopLeft = mapFromGlobal(bestWindow.rect.topLeft());
+//        QRect localRect(localTopLeft, bestWindow.rect.size());
+        
+//        currentWindowRect = localRect;
+//        selectedRect = currentWindowRect;
+//        update();
+//    } else {
+//        currentWindowRect = QRect();
+//        // Don't clear selectedRect here if we want to keep the last valid one?
+//        // No, if we move to empty space, we should clear the preview.
+//        selectedRect = QRect();
+//        update();
+//    }
+}
+
+#ifdef Q_OS_WIN
+BOOL CALLBACK ScreenshotWidget::EnumWindowsProc(HWND hwnd, LPARAM lParam) {
+    QList<WindowInfo>* windowList = reinterpret_cast<QList<WindowInfo>*>(lParam);
+    // 过滤：隐藏窗口、最小化窗口
+    if (!hwnd || !IsWindowVisible(hwnd) || IsIconic(hwnd)) {
+        return TRUE;
+    }
+
+    // 过滤无标题系统窗口
+    char titleBuf[256] = {0};
+    GetWindowTextA(hwnd, titleBuf, sizeof(titleBuf));
+    QString title = QString::fromLocal8Bit(titleBuf);
+
+    if (title.isEmpty()) {
+        LONG style = GetWindowLongPtrA(hwnd, GWL_STYLE);
+        if ((style & WS_CHILD) || ((style & WS_POPUP) && !(style & WS_CAPTION))) {
+            return TRUE;
+        }
+    }
+
+    // 过滤截图软件自身窗口
+    DWORD pid = 0;
+    GetWindowThreadProcessId(hwnd, &pid);
+    HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, pid);
+    char exeName[256] = {0};
+    GetModuleBaseNameA(hProcess, nullptr, exeName, sizeof(exeName));
+    CloseHandle(hProcess);
+    if (QString::fromLocal8Bit(exeName) == QCoreApplication::applicationName().toLocal8Bit()) {
+        return TRUE;
+    }
+
+    QString processName = QString::fromLocal8Bit(exeName);
+
+    //过滤全屏/接近全屏的设置窗口
+    RECT winRect;
+    GetWindowRect(hwnd, &winRect);
+    int width = winRect.right - winRect.left;
+    int height = winRect.bottom - winRect.top;
+
+    QScreen* primaryScreen = QGuiApplication::primaryScreen();
+    QRect screenRect = primaryScreen->geometry();
+    bool isNearFullScreen = (qAbs(width - screenRect.width()) < 10) &&
+            (qAbs(height - screenRect.height()) < 10);
+
+    if (isNearFullScreen) {
+        // 检测是否有有效子窗口
+        bool hasValidChild = false;
+        EnumChildWindows(hwnd, ScreenshotWidget::EnumChildProc, reinterpret_cast<LPARAM>(&hasValidChild));
+
+        if (!hasValidChild) {
+            return TRUE; // 全屏+无有效子窗口 → 预加载容器，过滤
+        }
+    }
+
+    // 像素级检测透明度
+    QPoint center = QPoint(winRect.left + width/2, winRect.top + height/2);
+    QScreen* currScreen = QGuiApplication::screenAt(center);
+    if (currScreen) {
+        QImage testImg = currScreen->grabWindow(0,
+                                                center.x() - 10,
+                                                center.y() - 10,
+                                                20, 20).toImage();
+
+        if (!testImg.isNull()) {
+            int transparentCnt = 0;
+            for (int x = 0; x < 20; x++) {
+                for (int y = 0; y < 20; y++) {
+                    QRgb rgb = testImg.pixel(x, y);
+                    QColor color = QColor::fromRgba(rgb);
+                    if (color.alpha() < 255) { // 透明像素
+                        transparentCnt++;
+                    }
+                }
+            }
+            if (transparentCnt * 100.0 / 400 > 70) { // 70% 以上透明
+                return TRUE; // 透明容器，过滤
             }
         }
     }
-    
-    if (bestWindow.isValid()) {
-        // Convert global rect back to local coordinates
-        QPoint localTopLeft = mapFromGlobal(bestWindow.rect.topLeft());
-        QRect localRect(localTopLeft, bestWindow.rect.size());
-        
-        currentWindowRect = localRect;
-        selectedRect = currentWindowRect;
-        update();
-    } else {
-        currentWindowRect = QRect();
-        // Don't clear selectedRect here if we want to keep the last valid one? 
-        // No, if we move to empty space, we should clear the preview.
-        selectedRect = QRect();
-        update();
+
+
+    // 获取窗口边界（含边框）
+    RECT rect;
+    if (GetWindowRect(hwnd, &rect)) {
+        WindowInfo info;
+        info.hwnd = hwnd;
+        info.rect = QRect(rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top);
+
+        // 过滤过小窗口（小于 10x10 像素）
+        if (info.rect.width() >= 10 && info.rect.height() >= 10) {
+            windowList->append(info);
+        }
     }
+    return TRUE;
 }
 void ScreenshotWidget::showWatermarkDialog()//嵌入水印
 {
@@ -2509,3 +2695,158 @@ void ScreenshotWidget::showWatermarkDialog()//嵌入水印
         QMessageBox::information(this, "成功", "隐水印参数设置成功！\n保存截图时将自动嵌入水印。");
     }
 }
+BOOL CALLBACK ScreenshotWidget::EnumChildProc(HWND childHwnd, LPARAM lParam) {
+    bool* pHasValid = reinterpret_cast<bool*>(lParam);
+    if (IsWindowVisible(childHwnd)) {
+        RECT childRect;
+        GetWindowRect(childHwnd, &childRect);
+        int cw = childRect.right - childRect.left;
+        int ch = childRect.bottom - childRect.top;
+        if (cw > 30 && ch > 30) { // 子窗口尺寸有效
+            *pHasValid = true;
+            return FALSE; // 找到即停止枚举
+        }
+    }
+    return TRUE; // 继续枚举
+}
+
+// 精准获取窗口边界
+QRect ScreenshotWidget::getAccurateWindowRect(HWND hwnd) {
+    // 先尝试读取 Windows DWM 扩展边框
+    RECT extendedFrameRect;
+    HRESULT hr = DwmGetWindowAttribute(
+                hwnd,
+                DWMWA_EXTENDED_FRAME_BOUNDS, // 读取客户区实际边界
+                &extendedFrameRect,
+                sizeof(extendedFrameRect)
+                );
+
+    if (SUCCEEDED(hr)) {
+        // 成功获取：直接返回
+        return QRect(
+                    extendedFrameRect.left * devicePixelRatio,
+                    extendedFrameRect.top * devicePixelRatio,
+                    (extendedFrameRect.right - extendedFrameRect.left) * devicePixelRatio,
+                    (extendedFrameRect.bottom - extendedFrameRect.top) * devicePixelRatio
+                    );
+    }
+
+    // 最终外边界
+    RECT rect;
+    GetWindowRect(hwnd, &rect);
+    return QRect(rect.left * devicePixelRatio, rect.top * devicePixelRatio,
+                 (rect.right - rect.left) * devicePixelRatio,
+                 (rect.bottom - rect.top) * devicePixelRatio);
+}
+#endif
+
+void ScreenshotWidget::mouseIsAdjust(QPoint mousePos)
+{
+
+    if(m_isadjust){
+        //左上角
+        if(m_adjectDirection == TopLeftCorner){
+            startPoint = mousePos;
+        }
+        //右上角
+        else if(m_adjectDirection == TopRightCorner){
+            startPoint.setY(mousePos.y());
+            endPoint.setX(mousePos.x());
+        }
+        // 左下角
+        else if(m_adjectDirection == LeftBottom){
+            startPoint.setX(mousePos.x());
+            endPoint.setY(mousePos.y());
+        }
+        // 右下角
+        else if(m_adjectDirection == RightBottom){
+            endPoint = mousePos;
+        }
+        // 左边中心点
+        else if(m_adjectDirection == LeftCenterPoint){
+            startPoint.setX(mousePos.x());
+        }
+        // 上边中心点
+        else if(m_adjectDirection == TopCenterPoint){
+            startPoint.setY(mousePos.y());
+        }
+        // 右边中心点
+        else if(m_adjectDirection == RightCenterPoint){
+            endPoint.setX(mousePos.x());
+        }
+        // 下边中心点
+        else if(m_adjectDirection == BottomCenterPoint){
+            endPoint.setY(mousePos.y());
+        }
+        //整体移动
+        else if(m_adjectDirection == MoveAll){
+            startPoint.setX(mousePos.x() - m_relativeDistance.x());
+            startPoint.setY(mousePos.y() - m_relativeDistance.y());
+            endPoint.setX(startPoint.x() + m_relativeDistance.width());
+            endPoint.setY(startPoint.y() + m_relativeDistance.height());
+        }
+    }else{
+        //左上角
+        if(mousePos.x() >= (startPoint.x() - 6) && mousePos.x() <= (startPoint.x() + 6) &&
+           mousePos.y() >= (startPoint.y() - 6) && mousePos.y() <= (startPoint.y() + 6)){
+            setCursor(Qt::SizeFDiagCursor);
+            m_adjectDirection = TopLeftCorner;
+        }
+        // 右上角
+        else if(mousePos.x() >= (endPoint.x() - 6) && mousePos.x() <= (endPoint.x() + 6) &&
+                mousePos.y() >= (startPoint.y() - 6) && mousePos.y() <= (startPoint.y() + 6)){
+            setCursor(Qt::SizeBDiagCursor);
+            m_adjectDirection = TopRightCorner;
+        }
+        // 左下角
+        else if(mousePos.x() >= (startPoint.x() - 6) && mousePos.x() <= (startPoint.x() + 6) &&
+                mousePos.y() >= (endPoint.y() - 6) && mousePos.y() <= (endPoint.y() + 6)){
+            m_adjectDirection = LeftBottom;
+            setCursor(Qt::SizeBDiagCursor);
+        }
+        // 右下角
+        else if(mousePos.x() >= (endPoint.x() - 6) && mousePos.x() <= (endPoint.x() + 6) &&
+                mousePos.y() >= (endPoint.y() - 6) && mousePos.y() <= (endPoint.y() + 6)){
+            m_adjectDirection = RightBottom;
+            setCursor(Qt::SizeFDiagCursor);
+        }
+        // 左边中心点
+        else if(mousePos.x() >= (startPoint.x() - 6) && mousePos.x() <= (startPoint.x() + 6) &&
+                mousePos.y() >= ((startPoint.y() + endPoint.y()) / 2 - 6) && mousePos.y() <= ((startPoint.y() + endPoint.y()) / 2 + 6)){
+            m_adjectDirection = LeftCenterPoint;
+            setCursor(Qt::SizeHorCursor);
+        }
+        // 上边中心点
+        else if(mousePos.x() >= ((startPoint.x() + endPoint.x()) / 2 - 6) && mousePos.x() <= ((startPoint.x() + endPoint.x()) / 2 + 6) &&
+                mousePos.y() >= (startPoint.y() - 6) && mousePos.y() <= (startPoint.y() + 6)){
+            m_adjectDirection = TopCenterPoint;
+            setCursor(Qt::SizeVerCursor);
+        }
+        // 右边中心点
+        else if(mousePos.x() >= (endPoint.x() - 6) && mousePos.x() <= (endPoint.x() + 6) &&
+                mousePos.y() >= ((startPoint.y() + endPoint.y()) / 2 - 6) && mousePos.y() <= ((startPoint.y() + endPoint.y()) / 2 + 6)){
+            m_adjectDirection = RightCenterPoint;
+            setCursor(Qt::SizeHorCursor);
+        }
+        // 下边中心点
+        else if(mousePos.x() >= ((startPoint.x() + endPoint.x()) / 2 - 6) && mousePos.x() <= ((startPoint.x() + endPoint.x()) / 2 + 6) &&
+                mousePos.y() >= (endPoint.y() - 6) && mousePos.y() <= (endPoint.y() + 6)){
+            m_adjectDirection = BottomCenterPoint;
+            setCursor(Qt::SizeVerCursor);
+        }
+        // 四条边
+        else if(((mousePos.x() >= startPoint.x() - 6 && mousePos.x() <= startPoint.x() + 6) && (mousePos.y() >= startPoint.y() && mousePos.y() <= endPoint.y())) ||
+                ((mousePos.x() >= endPoint.x() - 6 && mousePos.x() <= endPoint.x() + 6) && (mousePos.y() >= startPoint.y() && mousePos.y() <= endPoint.y())) ||
+                ((mousePos.x() >= startPoint.x() && mousePos.x() <= endPoint.x()) && (mousePos.y() >= startPoint.y() - 6 &&mousePos.y() <= startPoint.y() + 6)) ||
+                ((mousePos.x() >= startPoint.x() && mousePos.x() <= endPoint.x()) && (mousePos.y() >= endPoint.y() - 6 &&mousePos.y() <= endPoint.y() + 6))){
+            m_adjectDirection = MoveAll;
+            setCursor(Qt::SizeAllCursor);
+        }
+        //其余位置恢复正常
+        else{
+            setCursor(Qt::CrossCursor);
+        }
+    }
+
+}
+

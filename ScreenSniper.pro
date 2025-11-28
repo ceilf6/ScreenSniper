@@ -10,6 +10,29 @@ macx {
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 # OpenCV 配置 - 跨平台版本
+# Windows 特定的链接库
+win32 {
+    LIBS += -luser32
+    LIBS += -lgdi32
+    LIBS += -ldwmapi
+
+    # 如果需要其他 Windows 特有库
+    # LIBS += -lole32
+    # LIBS += -loleaut32
+    # LIBS += -luuid
+}
+
+# Linux 特定的链接库
+unix:!macx {
+    # X11 相关库（用于窗口操作）
+    LIBS += -lX11
+    LIBS += -lXfixes
+    LIBS += -lXext
+
+    # 如果需要图形相关
+    # LIBS += -lXrender
+    # LIBS += -lXrandr
+}
 win32 {
     # Windows 配置
     INCLUDEPATH += "D:/C++/opencv/build/include"
