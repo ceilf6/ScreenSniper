@@ -45,7 +45,11 @@ void PinWidget::mousePressEvent(QMouseEvent *event)
     if (event->button() == Qt::LeftButton) {
         // 记录鼠标按下时，光标相对于窗口左上角的距离
         // 注意：Qt6 使用 globalPosition()，Qt5 使用 globalPos()
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
         m_dragPosition = event->globalPosition().toPoint() - frameGeometry().topLeft();
+#else
+        m_dragPosition = event->globalPos() - frameGeometry().topLeft();
+#endif
         event->accept();
     }
 }
@@ -54,7 +58,11 @@ void PinWidget::mouseMoveEvent(QMouseEvent *event)
 {
     if (event->buttons() & Qt::LeftButton) {
         // 移动窗口：当前鼠标绝对位置 - 之前记录的相对距离
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
         move(event->globalPosition().toPoint() - m_dragPosition);
+#else
+        move(event->globalPos() - m_dragPosition);
+#endif
         event->accept();
     }
 }

@@ -57,6 +57,8 @@ struct DrawnPenStroke
     int width;
 };
 
+#ifdef Q_OS_WIN
+#include <windows.h>
 // 窗口信息结构体
 struct WindowInfo
 {
@@ -65,6 +67,7 @@ struct WindowInfo
     QRect rect;
     bool isValid() const { return !title.isEmpty() && rect.isValid(); }
 };
+#endif
 
 class ScreenshotWidget : public QWidget
 {
@@ -154,14 +157,15 @@ private:
 
     void pinToDesktop();
     void captureWindow(QPoint mousePos);
+
+#ifdef Q_OS_WIN
     // 枚举系统所有有效顶层窗口
     QList<WindowInfo> enumAllValidWindows();
     // 回调函数
     static BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam);
     // 精准获取窗口边界
     QRect getAccurateWindowRect(HWND hwnd);
-
-
+#endif
 
     //画笔相关函数
     void setupPenToolbar();

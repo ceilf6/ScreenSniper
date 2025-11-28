@@ -1,5 +1,7 @@
 QT       += core gui widgets
-LIBS += -lPsapi -lDwmapi
+win32 {
+    LIBS += -lPsapi -lDwmapi
+}
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 CONFIG += c++17

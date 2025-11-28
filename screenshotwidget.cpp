@@ -1,6 +1,7 @@
 #include "screenshotwidget.h"
 #include "pinwidget.h"
 #include <QPainter>
+#include <QPainterPath>
 #include <QMouseEvent>
 #include <QKeyEvent>
 #include <QScreen>
