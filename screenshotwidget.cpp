@@ -2551,51 +2551,14 @@ void ScreenshotWidget::captureWindow(QPoint mousePos)
             break; // 顶层窗口优先（枚举顺序为顶层在前）
         }
     }
-
-    //    if (selecting || selected || isDrawing || drawingEffect) return;
-
-    //    QList<WindowInfo> windows = enumAllValidWindows();
-
-    //    WindowInfo bestWindow;
-    //    int minArea = 2147483647; // INT_MAX
-
-    //    // Map local mouse pos to global for comparison with CGWindowList coords
-    //    QPoint globalMousePos = mapToGlobal(mousePos);
-
-    //    for (const WindowInfo& info : windows) {
-    //        if (info.rect.contains(globalMousePos)) {
-    //            int area = info.rect.width() * info.rect.height();
-    //            if (area < minArea) {
-    //                minArea = area;
-    //                bestWindow = info;
-    //            }
-    //        }
-    //    }
-
-    //    if (bestWindow.isValid()) {
-    //        // Convert global rect back to local coordinates
-    //        QPoint localTopLeft = mapFromGlobal(bestWindow.rect.topLeft());
-    //        QRect localRect(localTopLeft, bestWindow.rect.size());
-
-    //        currentWindowRect = localRect;
-    //        selectedRect = currentWindowRect;
-    //        update();
-    //    } else {
-    //        currentWindowRect = QRect();
-    //        // Don't clear selectedRect here if we want to keep the last valid one?
-    //        // No, if we move to empty space, we should clear the preview.
-    //        selectedRect = QRect();
-    //        update();
-    //    }
 }
 
 #ifdef Q_OS_WIN
 BOOL CALLBACK ScreenshotWidget::EnumWindowsProc(HWND hwnd, LPARAM lParam)
 {
-    QList<WindowInfo> *windowList = reinterpret_cast<QList<WindowInfo> *>(lParam);
+    QList<WindowInfo>* windowList = reinterpret_cast<QList<WindowInfo>*>(lParam);
     // 过滤：隐藏窗口、最小化窗口
-    if (!hwnd || !IsWindowVisible(hwnd) || IsIconic(hwnd))
-    {
+    if (!hwnd || !IsWindowVisible(hwnd) || IsIconic(hwnd)) {
         return TRUE;
     }
 
@@ -2604,14 +2567,13 @@ BOOL CALLBACK ScreenshotWidget::EnumWindowsProc(HWND hwnd, LPARAM lParam)
     GetWindowTextA(hwnd, titleBuf, sizeof(titleBuf));
     QString title = QString::fromLocal8Bit(titleBuf);
 
-    if (title.isEmpty())
-    {
+    if (title.isEmpty() || title == "设置") {
         LONG style = GetWindowLongPtrA(hwnd, GWL_STYLE);
-        if ((style & WS_CHILD) || ((style & WS_POPUP) && !(style & WS_CAPTION)))
-        {
+        if ((style & WS_CHILD) || ((style & WS_POPUP) && !(style & WS_CAPTION))) {
             return TRUE;
         }
     }
+
 
     // 过滤截图软件自身窗口
     DWORD pid = 0;
@@ -2619,84 +2581,41 @@ BOOL CALLBACK ScreenshotWidget::EnumWindowsProc(HWND hwnd, LPARAM lParam)
     HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, pid);
     char exeName[256] = {0};
     GetModuleBaseNameA(hProcess, nullptr, exeName, sizeof(exeName));
+
     CloseHandle(hProcess);
-    if (QString::fromLocal8Bit(exeName) == QCoreApplication::applicationName().toLocal8Bit())
-    {
+    if (QString::fromLocal8Bit(exeName) == QCoreApplication::applicationName().toLocal8Bit()) {
         return TRUE;
     }
 
-    QString processName = QString::fromLocal8Bit(exeName);
-
-    // 过滤全屏/接近全屏的设置窗口
     RECT winRect;
     GetWindowRect(hwnd, &winRect);
     int width = winRect.right - winRect.left;
     int height = winRect.bottom - winRect.top;
-
-    QScreen *primaryScreen = QGuiApplication::primaryScreen();
+    // 过滤过小窗口
+    if (width < 50 && height < 50) {
+        return TRUE;
+    }
+    //过滤全屏/接近全屏的设置窗口
+    QScreen* primaryScreen = QGuiApplication::primaryScreen();
     QRect screenRect = primaryScreen->geometry();
-    bool isNearFullScreen = (qAbs(width - screenRect.width()) < 10) &&
-                            (qAbs(height - screenRect.height()) < 10);
-
-    if (isNearFullScreen)
-    {
+    bool isNearFullScreen = (qAbs(width - screenRect.width()) < 20) &&
+            (qAbs(height - screenRect.height()) < 20);
+    if(isNearFullScreen){
         // 检测是否有有效子窗口
         bool hasValidChild = false;
         EnumChildWindows(hwnd, ScreenshotWidget::EnumChildProc, reinterpret_cast<LPARAM>(&hasValidChild));
 
-        if (!hasValidChild)
-        {
-            return TRUE; // 全屏+无有效子窗口 → 预加载容器，过滤
+        if (!hasValidChild) {
+            return TRUE; // 全屏+无有效子窗口过滤
         }
     }
 
-    // 像素级检测透明度
-    QPoint center = QPoint(winRect.left + width / 2, winRect.top + height / 2);
-    QScreen *currScreen = QGuiApplication::screenAt(center);
-    if (currScreen)
-    {
-        QImage testImg = currScreen->grabWindow(0,
-                                                center.x() - 10,
-                                                center.y() - 10,
-                                                20, 20)
-                             .toImage();
+    // 写入信息
+    WindowInfo info;
+    info.hwnd = hwnd;
+    info.rect = QRect(winRect.left, winRect.top, width, height);
+    windowList->append(info);
 
-        if (!testImg.isNull())
-        {
-            int transparentCnt = 0;
-            for (int x = 0; x < 20; x++)
-            {
-                for (int y = 0; y < 20; y++)
-                {
-                    QRgb rgb = testImg.pixel(x, y);
-                    QColor color = QColor::fromRgba(rgb);
-                    if (color.alpha() < 255)
-                    { // 透明像素
-                        transparentCnt++;
-                    }
-                }
-            }
-            if (transparentCnt * 100.0 / 400 > 70)
-            {                // 70% 以上透明
-                return TRUE; // 透明容器，过滤
-            }
-        }
-    }
-
-    // 获取窗口边界（含边框）
-    RECT rect;
-    if (GetWindowRect(hwnd, &rect))
-    {
-        WindowInfo info;
-        info.hwnd = hwnd;
-        info.rect = QRect(rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top);
-
-        // 过滤过小窗口（小于 10x10 像素）
-        if (info.rect.width() >= 10 && info.rect.height() >= 10)
-        {
-            windowList->append(info);
-        }
-    }
     return TRUE;
 }
 #endif
@@ -2751,15 +2670,13 @@ void ScreenshotWidget::showWatermarkDialog() // 嵌入水印
 #ifdef Q_OS_WIN
 BOOL CALLBACK ScreenshotWidget::EnumChildProc(HWND childHwnd, LPARAM lParam)
 {
-    bool *pHasValid = reinterpret_cast<bool *>(lParam);
-    if (IsWindowVisible(childHwnd))
-    {
+    bool* pHasValid = reinterpret_cast<bool*>(lParam);
+    if (IsWindowVisible(childHwnd)) {
         RECT childRect;
         GetWindowRect(childHwnd, &childRect);
         int cw = childRect.right - childRect.left;
         int ch = childRect.bottom - childRect.top;
-        if (cw > 30 && ch > 30)
-        { // 子窗口尺寸有效
+        if (cw > 50 && ch > 50) { // 子窗口尺寸有效
             *pHasValid = true;
             return FALSE; // 找到即停止枚举
         }
@@ -2773,19 +2690,20 @@ QRect ScreenshotWidget::getAccurateWindowRect(HWND hwnd)
     // 先尝试读取 Windows DWM 扩展边框
     RECT extendedFrameRect;
     HRESULT hr = DwmGetWindowAttribute(
-        hwnd,
-        DWMWA_EXTENDED_FRAME_BOUNDS, // 读取客户区实际边界
-        &extendedFrameRect,
-        sizeof(extendedFrameRect));
+                hwnd,
+                DWMWA_EXTENDED_FRAME_BOUNDS, // 读取客户区实际边界
+                &extendedFrameRect,
+                sizeof(extendedFrameRect)
+                );
 
-    if (SUCCEEDED(hr))
-    {
+    if (SUCCEEDED(hr)) {
         // 成功获取：直接返回
         return QRect(
-            extendedFrameRect.left * devicePixelRatio,
-            extendedFrameRect.top * devicePixelRatio,
-            (extendedFrameRect.right - extendedFrameRect.left) * devicePixelRatio,
-            (extendedFrameRect.bottom - extendedFrameRect.top) * devicePixelRatio);
+                    extendedFrameRect.left * devicePixelRatio,
+                    extendedFrameRect.top * devicePixelRatio,
+                    (extendedFrameRect.right - extendedFrameRect.left) * devicePixelRatio,
+                    (extendedFrameRect.bottom - extendedFrameRect.top) * devicePixelRatio
+                    );
     }
 
     // 最终外边界
