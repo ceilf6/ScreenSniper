@@ -49,3 +49,7 @@ desktop.ini
 *.log
 *.tmp
 *.temp
+
+# Local, per-developer qmake includes (machine-specific library paths and defines)
+# Add `local_config.pri` to this file to keep local settings out of version control.
+local_config.pri

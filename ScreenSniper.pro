@@ -113,3 +113,10 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 
 RESOURCES += \
     resources.qrc
+
+# Optional per-developer local config (ignored by git). Put machine-specific INCLUDEPATH/LIBS here.
+# Example: local_config.pri (not committed). This allows each developer to keep custom library
+# paths (Tesseract, OpenCV, etc.) out of the shared `.pro` file.
+exists(local_config.pri) {
+    include(local_config.pri)
+}

@@ -1,0 +1,28 @@
+# local_config.pri.example
+# Copy this file to `local_config.pri` and edit to match your machine.
+# Then keep `local_config.pri` uncommitted (it's already in .gitignore).
+
+# macOS (Homebrew) example:
+# Uncomment and adjust if you installed tesseract and/or OpenCV via Homebrew
+#
+# macx: {
+#    DEFINES += USE_TESSERACT
+#    INCLUDEPATH += /opt/homebrew/include
+#    LIBS += -L/opt/homebrew/lib -ltesseract -lleptonica
+#    INCLUDEPATH += /opt/homebrew/opt/opencv/include/opencv4
+#    LIBS += -L/opt/homebrew/opt/opencv/lib -lopencv_core -lopencv_imgproc -lopencv_highgui -lopencv_imgcodecs -lopencv_videoio
+# }
+
+# Windows example (adjust paths to your Tesseract/OPENCV installs):
+#
+# win32: {
+#    DEFINES += USE_TESSERACT
+#    INCLUDEPATH += "C:/Program Files/Tesseract-OCR/include"
+#    LIBS += -L"C:/Program Files/Tesseract-OCR/lib" -ltesseract51
+#    INCLUDEPATH += "D:/C++/opencv/build/include"
+#    LIBS += -L"D:/C++/opencv/build/x64/vc16/lib" -lopencv_world4120
+# }
+
+# Alternatively, set TESSDATA_PREFIX in your environment if tessdata is non-standard.
+# Example (macOS zsh):
+# export TESSDATA_PREFIX=/opt/homebrew/share/
