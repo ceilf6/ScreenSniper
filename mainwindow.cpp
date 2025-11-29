@@ -106,14 +106,14 @@ void MainWindow::onCaptureScreen()
 
     // 每次都重新创建截图窗口
     ScreenshotWidget *widget = new ScreenshotWidget();
-    //结束时会卡一下，看不到写的信息，所以直接注释掉了，后续可以加类似飞书的消息提示
-//    connect(widget, &ScreenshotWidget::screenshotTaken, this, [this]()
-//            {
-//        //show();
-//        trayIcon->showMessage("截图成功", "全屏截图已保存", QSystemTrayIcon::Information, 2000); });
+    // 结束时会卡一下，看不到写的信息，所以直接注释掉了，后续可以加类似飞书的消息提示
+    //    connect(widget, &ScreenshotWidget::screenshotTaken, this, [this]()
+    //            {
+    //        //show();
+    //        trayIcon->showMessage("截图成功", "全屏截图已保存", QSystemTrayIcon::Information, 2000); });
 
-//    connect(widget, &ScreenshotWidget::screenshotCancelled, this, [this]()
-//            { show(); });
+    //    connect(widget, &ScreenshotWidget::screenshotCancelled, this, [this]()
+    //            { show(); });
 
     // 延迟让窗口完全隐藏后再截图
     QTimer::singleShot(300, widget, [widget]()
@@ -127,14 +127,14 @@ void MainWindow::onCaptureArea()
 
     // 每次都重新创建截图窗口
     ScreenshotWidget *widget = new ScreenshotWidget();
-    //结束时会卡一下，看不到写的信息，所以直接注释掉了，后续可以加类似飞书的消息提示
-//    connect(widget, &ScreenshotWidget::screenshotTaken, this, [this]()
-//            {
-//        show();
-//        trayIcon->showMessage("截图成功", "区域截图已保存到剪赴板", QSystemTrayIcon::Information, 2000); });
+    // 结束时会卡一下，看不到写的信息，所以直接注释掉了，后续可以加类似飞书的消息提示
+    //    connect(widget, &ScreenshotWidget::screenshotTaken, this, [this]()
+    //            {
+    //        show();
+    //        trayIcon->showMessage("截图成功", "区域截图已保存到剪赴板", QSystemTrayIcon::Information, 2000); });
 
-//    connect(widget, &ScreenshotWidget::screenshotCancelled, this, [this]()
-//            { show(); });
+    //    connect(widget, &ScreenshotWidget::screenshotCancelled, this, [this]()
+    //            { show(); });
 
     // 延迟让窗口完全隐藏后再截图
     QTimer::singleShot(300, widget, &ScreenshotWidget::startCapture);

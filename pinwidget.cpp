@@ -42,7 +42,8 @@ void PinWidget::paintEvent(QPaintEvent *event)
 
 void PinWidget::mousePressEvent(QMouseEvent *event)
 {
-    if (event->button() == Qt::LeftButton) {
+    if (event->button() == Qt::LeftButton)
+    {
         // 记录鼠标按下时，光标相对于窗口左上角的距离
         // 注意：Qt6 使用 globalPosition()，Qt5 使用 globalPos()
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
@@ -56,7 +57,8 @@ void PinWidget::mousePressEvent(QMouseEvent *event)
 
 void PinWidget::mouseMoveEvent(QMouseEvent *event)
 {
-    if (event->buttons() & Qt::LeftButton) {
+    if (event->buttons() & Qt::LeftButton)
+    {
         // 移动窗口：当前鼠标绝对位置 - 之前记录的相对距离
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
         move(event->globalPosition().toPoint() - m_dragPosition);
@@ -73,14 +75,18 @@ void PinWidget::wheelEvent(QWheelEvent *event)
     int numDegrees = event->angleDelta().y();
 
     // 计算缩放因子：向上滚放大，向下滚缩小
-    if (numDegrees > 0) {
+    if (numDegrees > 0)
+    {
         m_scale *= 1.1; // 放大10%
-    } else {
+    }
+    else
+    {
         m_scale /= 1.1; // 缩小
     }
 
     // 限制最小尺寸，防止缩没见了
-    if (m_scale < 0.1) m_scale = 0.1;
+    if (m_scale < 0.1)
+        m_scale = 0.1;
 
     // 计算新的尺寸
     QSize newSize = m_scale * m_sourcePixmap.size();
@@ -104,19 +110,23 @@ void PinWidget::contextMenuEvent(QContextMenuEvent *event)
     // 显示菜单并等待用户点击
     QAction *selectedItem = menu.exec(event->globalPos());
 
-    if (selectedItem == closeAction) {
+    if (selectedItem == closeAction)
+    {
         close(); // 关闭窗口
     }
-    else if (selectedItem == copyAction) {
+    else if (selectedItem == copyAction)
+    {
         // 复制到剪切板
         QApplication::clipboard()->setPixmap(m_sourcePixmap);
     }
-    else if (selectedItem == saveAction) {
+    else if (selectedItem == saveAction)
+    {
         // 打开保存对话框
         QString fileName = QFileDialog::getSaveFileName(this, "保存图片",
                                                         "screenshot_" + QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss") + ".png",
                                                         "Images (*.png *.jpg)");
-        if (!fileName.isEmpty()) {
+        if (!fileName.isEmpty())
+        {
             m_sourcePixmap.save(fileName);
         }
     }

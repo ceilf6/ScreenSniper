@@ -11,8 +11,8 @@
 #include <QVector>
 #include <QPoint>
 #include <QColor>
-#include<QTextEdit>
-#include<QLineEdit>
+#include <QTextEdit>
+#include <QLineEdit>
 
 // 绘制形状数据结构
 struct DrawnArrow
@@ -30,15 +30,15 @@ struct DrawnRectangle
     int width;
 };
 
-//绘制椭圆结构体
-struct  DrawnEllipse
+// 绘制椭圆结构体
+struct DrawnEllipse
 {
     QRect rect;
     QColor color;
     int width;
 };
 
-//绘制文本数据结构
+// 绘制文本数据结构
 struct DrawnText
 {
     QString text;
@@ -49,7 +49,7 @@ struct DrawnText
     QFont font;
 };
 
-//画笔数据结构
+// 画笔数据结构
 struct DrawnPenStroke
 {
     QVector<QPoint> points;
@@ -71,14 +71,14 @@ typedef struct WindowInfo
 #endif
     QRect rect;
     bool isValid() const { return rect.isValid(); }
-}WindowInfo;
+} WindowInfo;
 
 class ScreenshotWidget : public QWidget
 {
     Q_OBJECT
 
 public:
-    explicit ScreenshotWidget(QWidget* parent = nullptr);
+    explicit ScreenshotWidget(QWidget *parent = nullptr);
     ~ScreenshotWidget();
 
     void startCapture();
@@ -90,12 +90,12 @@ signals:
     void penColorChanged();
 
 protected:
-    void paintEvent(QPaintEvent* event) override;
-    void mousePressEvent(QMouseEvent* event) override;
-    void mouseMoveEvent(QMouseEvent* event) override;
-    void mouseReleaseEvent(QMouseEvent* event) override;
-    void mouseDoubleClickEvent(QMouseEvent* event) override;
-    void keyPressEvent(QKeyEvent* event) override;
+    void paintEvent(QPaintEvent *event) override;
+    void mousePressEvent(QMouseEvent *event) override;
+    void mouseMoveEvent(QMouseEvent *event) override;
+    void mouseReleaseEvent(QMouseEvent *event) override;
+    void mouseDoubleClickEvent(QMouseEvent *event) override;
+    void keyPressEvent(QKeyEvent *event) override;
 
 private slots:
     void onTextInputFinished();
@@ -111,15 +111,15 @@ private slots:
     void onFontSizeInputChanged();
 
 private:
-    //越界判断相关：
-    //水印相关
+    // 越界判断相关：
+    // 水印相关
     void showWatermarkDialog();
-    //高斯模糊相关函数：
+    // 高斯模糊相关函数：
     void increaseBlurStrength();
     void decreaseBlurStrength();
     void updateBlurStrengthLabel();
     void updateBlurToolbarPosition();
-    //马赛克相关函数：
+    // 马赛克相关函数：
     enum DrawMode
     {
         None,
@@ -131,41 +131,43 @@ private:
         Mosaic,
         Blur,
         Watermark
-    }; DrawMode currentDrawMode;
-    QList<DrawMode> effectTypes;        // 存储效果类型
+    };
+    DrawMode currentDrawMode;
+    QList<DrawMode> effectTypes; // 存储效果类型
     void increaseEffectStrength();
     void decreaseEffectStrength();
-    void setupEffectToolbar(); // 新增工具栏设置
-    QPixmap applyEffect(const QPixmap& source, const QRect& area, int strength, DrawMode mode);//模糊应用函数
-    QPixmap applyBlur(const QPixmap& source, const QRect& area, int radius);//高斯模糊应用
-    QPixmap applyMosaic(const QPixmap& source, const QRect& area, int strength);//马赛克应用
+    void setupEffectToolbar();                                                                  // 新增工具栏设置
+    QPixmap applyEffect(const QPixmap &source, const QRect &area, int strength, DrawMode mode); // 模糊应用函数
+    QPixmap applyBlur(const QPixmap &source, const QRect &area, int radius);                    // 高斯模糊应用
+    QPixmap applyMosaic(const QPixmap &source, const QRect &area, int strength);                // 马赛克应用
     void setupToolbar();
     void updateToolbarPosition();
-    void updatePreviewCanvas(QLabel* canvas);
+    void toggleSubToolbar(QWidget *targetToolbar); // 统一管理子工具栏显示
+    void updatePreviewCanvas(QLabel *canvas);
 
     void saveScreenshot();
     void copyToClipboard();
     void cancelCapture();
-    void drawArrow(QPainter& painter, const QPointF& start, const QPointF& end, const QColor& color, int width, double scale = 1.0);
+    void drawArrow(QPainter &painter, const QPointF &start, const QPointF &end, const QColor &color, int width, double scale = 1.0);
     void updateEffectToolbarPosition();
     void updateStrengthLabel();
 
-    //添加文本相关函数
+    // 添加文本相关函数
     void setupTextInput();
-    void drawText(QPainter& painter, const QPoint& position, const QString& text, const QColor& color, const QFont& font);
+    void drawText(QPainter &painter, const QPoint &position, const QString &text, const QColor &color, const QFont &font);
     void setTextToolbar();
     void updateFontToolbar();
     void updateTextInputStyle();
     void updateTextInputSize();
-    void handleTextModeClick(const QPoint& clickPos);
+    void handleTextModeClick(const QPoint &clickPos);
     void updateFontToolbarPosition();
     void editExistingText(int textIndex);
-    void handleNoneMode(const QPoint& clickPos);
+    void handleNoneMode(const QPoint &clickPos);
 
     void pinToDesktop();
-    //窗口识别函数
+    // 窗口识别函数
     void captureWindow(QPoint mousePos);
-    //判断鼠标是否点击调节位置
+    // 判断鼠标是否点击调节位置
     void mouseIsAdjust(QPoint mousePos);
     // 枚举系统所有有效顶层窗口
     QList<WindowInfo> enumAllValidWindows();
@@ -179,13 +181,13 @@ private:
 
 #endif
 
-    //画笔相关函数
+    // 画笔相关函数
     void setupPenToolbar();
     void updatePenToolbarPosition();
 
-
-    //调整大小的方向和移动枚举
-    enum AdjectDirection{
+    // 调整大小的方向和移动枚举
+    enum AdjectDirection
+    {
         TopLeftCorner,
         TopRightCorner,
         LeftBottom,
@@ -198,39 +200,37 @@ private:
     };
     enum AdjectDirection m_adjectDirection;
 
-    QPixmap screenPixmap;    // 屏幕截图
-    QPoint startPoint;       // 选择起始点
-    QPoint endPoint;         // 选择结束点
-    bool selecting;          // 是否正在选择
-    bool selected;           // 是否已选择完成
-    QRect selectedRect;      // 选中的矩形区域
-    QRect m_relativeDistance;//保存拉动时鼠标与startPos的距离
-    bool m_isadjust;         // 是否正在调整截取矩形大小
-    QList<WindowInfo> m_validWindows;   // 有效窗口列表
-    bool m_selectedWindow;   // 是否已选择窗口
-    WindowInfo m_hoverWindow;//高亮窗口
+    QPixmap screenPixmap;             // 屏幕截图
+    QPoint startPoint;                // 选择起始点
+    QPoint endPoint;                  // 选择结束点
+    bool selecting;                   // 是否正在选择
+    bool selected;                    // 是否已选择完成
+    QRect selectedRect;               // 选中的矩形区域
+    QRect m_relativeDistance;         // 保存拉动时鼠标与startPos的距离
+    bool m_isadjust;                  // 是否正在调整截取矩形大小
+    QList<WindowInfo> m_validWindows; // 有效窗口列表
+    bool m_selectedWindow;            // 是否已选择窗口
+    WindowInfo m_hoverWindow;         // 高亮窗口
 
     // 工具栏
-    QWidget* toolbar;
-    QPushButton* btnSave;
-    QPushButton* btnCopy;
-    QPushButton* btnCancel;
-    QPushButton* btnRect;  // 矩形工具
-    QPushButton* btnEllipse;//椭圆工具
-    QPushButton* btnArrow; // 箭头工具
-    QPushButton* btnText;  // 文字工具
-    QPushButton* btnPen;   // 画笔工具
-    QPushButton* btnMosaic;  // 马赛克按钮
-    QPushButton* btnBlur;//高斯模糊按钮
-    QPushButton *btnPin; //Pin到桌面按钮
-    QPushButton *btnWatermark;//水印按钮
+    QWidget *toolbar;
+    QPushButton *btnSave;
+    QPushButton *btnCopy;
+    QPushButton *btnCancel;
+    QPushButton *btnRect;      // 矩形工具
+    QPushButton *btnEllipse;   // 椭圆工具
+    QPushButton *btnArrow;     // 箭头工具
+    QPushButton *btnText;      // 文字工具
+    QPushButton *btnPen;       // 画笔工具
+    QPushButton *btnMosaic;    // 马赛克按钮
+    QPushButton *btnBlur;      // 高斯模糊按钮
+    QPushButton *btnPin;       // Pin到桌面按钮
+    QPushButton *btnWatermark; // 水印按钮
 
     // 尺寸显示标签
-    QLabel* sizeLabel;
+    QLabel *sizeLabel;
 
-
-
-    //模糊相关
+    // 模糊相关
     bool drawingEffect = false;
     QPoint EffectStartPoint;
     QPoint EffectEndPoint;
@@ -238,45 +238,44 @@ private:
     QList<int> EffectStrengths;
 
     // 强度调节工具栏
-    int currentEffectStrength = 20;//强度
-    int EffectBlockSize;     // 块大小
-    QWidget* EffectToolbar = nullptr;
-    QPushButton* btnStrengthUp;
-    QPushButton* btnStrengthDown;
-    QLabel* strengthLabel;
+    int currentEffectStrength = 20; // 强度
+    int EffectBlockSize;            // 块大小
+    QWidget *EffectToolbar = nullptr;
+    QPushButton *btnStrengthUp;
+    QPushButton *btnStrengthDown;
+    QLabel *strengthLabel;
     // ============ 马赛克成员变量结束 ============
 
-    //添加画笔选择相关
-    QColor currentPenColor;    //当前画笔颜色
-    int currentPenWidth;       //当前画笔粗细
+    // 添加画笔选择相关
+    QColor currentPenColor; // 当前画笔颜色
+    int currentPenWidth;    // 当前画笔粗细
 
-    //画笔轨迹相关
+    // 画笔轨迹相关
     QVector<QPoint> currentPenStroke;
     QVector<DrawnPenStroke> penStrokes;
 
-
-    //画笔工具栏
-    QWidget* penToolbar;
-    QPushButton* btnPenWidthUp;
-    QPushButton* btnPenWidthDown;
-    QLabel* penWidthLabel;
+    // 画笔工具栏
+    QWidget *penToolbar;
+    QPushButton *btnPenWidthUp;
+    QPushButton *btnPenWidthDown;
+    QLabel *penWidthLabel;
 
     // 形状工具栏
-    QWidget* shapesToolbar;
-    QPushButton* btnShapes; // 主工具栏上的形状按钮
-    QPushButton* btnShapeColor;
-    QPushButton* btnShapeWidthUp;
-    QPushButton* btnShapeWidthDown;
-    QLabel* shapeWidthLabel;
+    QWidget *shapesToolbar;
+    QPushButton *btnShapes; // 主工具栏上的形状按钮
+    QPushButton *btnShapeColor;
+    QPushButton *btnShapeWidthUp;
+    QPushButton *btnShapeWidthDown;
+    QLabel *shapeWidthLabel;
     void setupShapesToolbar();
     void updateShapesToolbarPosition();
     void updateShapeWidthLabel();
 
     // 高斯模糊相关
-    QWidget* blurToolbar;
-    QPushButton* btnBlurStrengthDown;
-    QPushButton* btnBlurStrengthUp;
-    QLabel* blurStrengthLabel;
+    QWidget *blurToolbar;
+    QPushButton *btnBlurStrengthDown;
+    QPushButton *btnBlurStrengthUp;
+    QLabel *blurStrengthLabel;
     int currentBlurStrength;
 
     QList<QRect> blurAreas;
@@ -294,31 +293,30 @@ private:
     QPoint currentMousePos;
     bool showMagnifier;
 
-    //文本输入相关
-    QLineEdit* textInput;
+    // 文本输入相关
+    QLineEdit *textInput;
     bool isTextInputActive;
     QPoint textInputPosition;
 
-    //文字移动相关
+    // 文字移动相关
     bool isTextMoving;
-    DrawnText* movingText;
+    DrawnText *movingText;
     QPoint dragStartOffset;
-    QPoint textClickStartPos;   // 文字点击起始位置
-    int textClickIndex;         // 文字点击索引
-    bool potentialTextDrag;     // 是否可能是文字拖拽
+    QPoint textClickStartPos; // 文字点击起始位置
+    int textClickIndex;       // 文字点击索引
+    bool potentialTextDrag;   // 是否可能是文字拖拽
 
-    //字体工具栏相关
-    QWidget* fontToolbar;
-    QPushButton* btnFontColor;
-    QPushButton* btnFontSizeUp;
-    QPushButton* btnFontSizeDown;
-    QLineEdit* fontSizeInput;
-    QPushButton* btnFontFamily;
+    // 字体工具栏相关
+    QWidget *fontToolbar;
+    QPushButton *btnFontColor;
+    QPushButton *btnFontSizeUp;
+    QPushButton *btnFontSizeDown;
+    QLineEdit *fontSizeInput;
+    QPushButton *btnFontFamily;
     QFont currentTextFont;
     QColor currentTextColor;
     int currentFontSize;
-    int editingTextIndex;           // 当前正在编辑的文本索引
-
+    int editingTextIndex; // 当前正在编辑的文本索引
 
     // 绘制相关
 
@@ -328,17 +326,16 @@ private:
     QVector<DrawnEllipse> ellipses;
     QVector<DrawnText> texts;
 
-
     // 当前绘制的临时数据
     bool isDrawing;
     QPoint drawStartPoint;
     QPoint drawEndPoint;
 
     // 当前鼠标下的窗口矩形（自动吸附用）
-    //QRect currentWindowRect;
-    //水印相关;
+    // QRect currentWindowRect;
+    // 水印相关;
     QString watermarkText;
-    //QRect currentWindowRect;
+    // QRect currentWindowRect;
 };
 
 #endif // SCREENSHOTWIDGET_H

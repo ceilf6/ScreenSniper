@@ -169,128 +169,49 @@ void ScreenshotWidget::setupToolbar()
     connect(btnCancel, &QPushButton::clicked, this, &ScreenshotWidget::cancelCapture);
 
     connect(btnShapes, &QPushButton::clicked, this, [this]()
-            {
-            // 显示形状工具栏
-            if (shapesToolbar->isVisible()) {
-                shapesToolbar->hide();
-            } else {
-                // 隐藏其他工具栏
-                if (penToolbar) penToolbar->hide();
-                if (fontToolbar) fontToolbar->hide();
-                if (EffectToolbar) EffectToolbar->hide();
-
-                updateShapesToolbarPosition();
-                shapesToolbar->show();
-                shapesToolbar->raise();
-            } });
+            { toggleSubToolbar(shapesToolbar); });
 
     connect(btnText, &QPushButton::clicked, this, [this]()
             {
-            selected = true;
-            currentDrawMode = Text;
-            toolbar->show();
-            EffectToolbar->hide();
-            penToolbar->hide();  // 隐藏其他工具栏
-            if (shapesToolbar) shapesToolbar->hide();
-
-            // 切换字体工具栏的显示状态（像画笔功能一样）
-            if (fontToolbar && fontToolbar->isVisible()) {
-                fontToolbar->hide();
-            } else {
-                // 确保字体工具栏已初始化
+                selected = true;
+                currentDrawMode = Text;
+                toolbar->show();
+                
                 if (!fontToolbar) {
                     setTextToolbar();
                 }
+                toggleSubToolbar(fontToolbar); });
 
-                // 将字体工具栏放在主工具栏下方
-                if (fontToolbar) {
-                    updateFontToolbarPosition();
-                    fontToolbar->show();
-                    fontToolbar->raise();
-                }
-            } });
     connect(btnPen, &QPushButton::clicked, this, [this]()
             {
-                    selected = true;
-                    currentDrawMode = Pen;
-                    toolbar->show();
-                    EffectToolbar->hide();
-                    if (shapesToolbar) shapesToolbar->hide();
-                    if (fontToolbar) fontToolbar->hide();
+                selected = true;
+                currentDrawMode = Pen;
+                toolbar->show();
+                
+                toggleSubToolbar(penToolbar);
 
-                    // 切换画笔工具栏的显示状态（像马赛克功能一样）
-                    if (penToolbar->isVisible()) {
-                        penToolbar->hide();
-                    } else {
-                        updatePenToolbarPosition();
-                        penToolbar->show();
-                        penToolbar->raise();
-
-                        // 如果有已绘制的画笔轨迹，立即更新预览
-                        if (!penStrokes.isEmpty()) {
-                            update();
-                        }
-                    } });
+                // 如果有已绘制的画笔轨迹，立即更新预览
+                if (penToolbar->isVisible() && !penStrokes.isEmpty()) {
+                    update();
+                } });
 
     connect(btnMosaic, &QPushButton::clicked, this, [this]()
             {
                 selected = true;
                 currentDrawMode = Mosaic;
-                toolbar->show(); // 保持主工具栏显示
+                toolbar->show();
+                toggleSubToolbar(nullptr); });
 
-                // 切换马赛克工具栏的显示状态
-                // if (EffectToolbar->isVisible()) {
-                //     EffectToolbar->hide();
-                // } else {
-                //     // 获取马赛克按钮在屏幕中的位置
-                //     QPoint mosaicBtnPos = btnMosaic->mapToGlobal(QPoint(0, 0));
-                //     // 转换为当前widget的坐标
-                //     QPoint localPos = this->mapFromGlobal(mosaicBtnPos);
-
-                //     // 将马赛克工具栏放在马赛克按钮正下方
-                //     int x = localPos.x();
-                //     int y = localPos.y() + btnMosaic->height() + 5;
-
-                //     EffectToolbar->move(x, y);
-                //     EffectToolbar->show();
-                //     EffectToolbar->raise();
-
-                //     // 如果有已绘制的马赛克区域，立即更新预览
-                //     if (!EffectAreas.isEmpty()) {
-                //         update();
-                //     }
-                // }
-            });
     connect(btnBlur, &QPushButton::clicked, this, [this]()
             {
                 selected = true;
                 currentDrawMode = Blur;
-                toolbar->show(); // 保持主工具栏显示
-
-                // // 切换马赛克工具栏的显示状态
-                // if (EffectToolbar->isVisible()) {
-                //     EffectToolbar->hide();
-                // } else {
-                //     // 获取马赛克按钮在屏幕中的位置
-                //     QPoint BlurBtnPos = btnBlur->mapToGlobal(QPoint(0, 0));
-                //     // 转换为当前widget的坐标
-                //     QPoint localPos = this->mapFromGlobal(BlurBtnPos);
-
-                //     // 将马赛克工具栏放在马赛克按钮正下方
-                //     int x = localPos.x();
-                //     int y = localPos.y() + btnBlur->height() + 5;
-
-                //     EffectToolbar->move(x, y);
-                //     EffectToolbar->show();
-                //     EffectToolbar->raise();
-
-                //     // 如果有已绘制的马赛克区域，立即更新预览
-                //     if (!EffectAreas.isEmpty()) {
-                //         update();
-                //     }
-                // }
-            });
-    connect(btnWatermark, &QPushButton::clicked, this, &ScreenshotWidget::showWatermarkDialog);
+                toolbar->show();
+                toggleSubToolbar(nullptr); });
+    connect(btnWatermark, &QPushButton::clicked, this, [this]()
+            {
+        toggleSubToolbar(nullptr);
+        showWatermarkDialog(); });
 
     connect(btnStrengthUp, &QPushButton::clicked, this, &ScreenshotWidget::increaseEffectStrength);
     connect(btnStrengthDown, &QPushButton::clicked, this, &ScreenshotWidget::decreaseEffectStrength);
@@ -3288,4 +3209,41 @@ void ScreenshotWidget::updateFontToolbarPosition()
         y = maxY - toolbarHeight - 5;
 
     fontToolbar->move(x, y);
+}
+
+void ScreenshotWidget::toggleSubToolbar(QWidget *targetToolbar)
+{
+    // 1. 隐藏所有其他子工具栏
+    if (penToolbar && penToolbar != targetToolbar)
+        penToolbar->hide();
+    if (shapesToolbar && shapesToolbar != targetToolbar)
+        shapesToolbar->hide();
+    if (fontToolbar && fontToolbar != targetToolbar)
+        fontToolbar->hide();
+    if (EffectToolbar && EffectToolbar != targetToolbar)
+        EffectToolbar->hide();
+
+    // 2. 切换目标工具栏状态
+    if (targetToolbar)
+    {
+        if (targetToolbar->isVisible())
+        {
+            targetToolbar->hide();
+        }
+        else
+        {
+            // 更新位置并显示
+            if (targetToolbar == penToolbar)
+                updatePenToolbarPosition();
+            else if (targetToolbar == shapesToolbar)
+                updateShapesToolbarPosition();
+            else if (targetToolbar == fontToolbar)
+                updateFontToolbarPosition();
+            else if (targetToolbar == EffectToolbar)
+                updateEffectToolbarPosition();
+
+            targetToolbar->show();
+            targetToolbar->raise();
+        }
+    }
 }
