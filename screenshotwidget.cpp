@@ -23,9 +23,7 @@
 #include <QColorDialog>
 #include <opencv2/opencv.hpp>
 #include "watermark_robust.h"
-#ifdef Q_OS_MAC
-#include "macocr.h"
-#endif
+#include "ocrmanager.h"
 
 #include <QSpinBox>
 #include <QDoubleSpinBox>
@@ -123,9 +121,8 @@ void ScreenshotWidget::setupToolbar()
     btnMosaic = new QPushButton("马赛克", toolbar);
     btnBlur = new QPushButton("高斯模糊", toolbar);    // 新增模糊按钮
     btnWatermark = new QPushButton("隐水印", toolbar); // 新增隐水印
-#ifdef Q_OS_MAC
-    btnOCR = new QPushButton("OCR", toolbar); // 新增 OCR 按钮
-#endif
+    btnOCR = new QPushButton("OCR", toolbar);          // 新增 OCR 按钮
+
     // 操作按钮
     btnSave = new QPushButton("保存", toolbar);
     btnCopy = new QPushButton("复制", toolbar);
@@ -139,9 +136,8 @@ void ScreenshotWidget::setupToolbar()
     layout->addWidget(btnMosaic);    // 马赛克按钮
     layout->addWidget(btnBlur);      // 高斯模糊按钮
     layout->addWidget(btnWatermark); // 水印按钮
-#ifdef Q_OS_MAC
-    layout->addWidget(btnOCR); // OCR 按钮
-#endif
+    layout->addWidget(btnOCR);       // OCR 按钮
+
     layout->addSpacing(10);
     layout->addWidget(btnSave);
     layout->addWidget(btnCopy);
@@ -176,9 +172,7 @@ void ScreenshotWidget::setupToolbar()
     connect(btnCopy, &QPushButton::clicked, this, &ScreenshotWidget::copyToClipboard);
     connect(btnPin, &QPushButton::clicked, this, &ScreenshotWidget::pinToDesktop);
     connect(btnCancel, &QPushButton::clicked, this, &ScreenshotWidget::cancelCapture);
-#ifdef Q_OS_MAC
     connect(btnOCR, &QPushButton::clicked, this, &ScreenshotWidget::performOCR);
-#endif
 
     connect(btnShapes, &QPushButton::clicked, this, [this]()
             { toggleSubToolbar(shapesToolbar); });
@@ -3255,7 +3249,6 @@ void ScreenshotWidget::toggleSubToolbar(QWidget *targetToolbar)
     }
 }
 
-#ifdef Q_OS_MAC
 void ScreenshotWidget::performOCR()
 {
     if (selectedRect.isNull())
@@ -3263,21 +3256,44 @@ void ScreenshotWidget::performOCR()
         return;
     }
 
+    QString backend = OcrManager::getBackendType();
+
+    // Windows/Linux 未配置 Tesseract 的情况
+    if (backend == "None")
+    {
+        QMessageBox::warning(this, "OCR 未配置",
+                             "当前平台需要安装并配置 Tesseract OCR 库才能使用此功能。\n\n"
+                             "请下载 Tesseract 开发库并在 ScreenSniper.pro 中启用 USE_TESSERACT 选项。");
+        return;
+    }
+
     // 获取当前截图（包含绘制的内容）
     QPixmap capture = this->grab(selectedRect);
 
     // 调用 OCR
-    QString text = MacOCR::recognizeText(capture);
+    QString text = OcrManager::recognize(capture);
 
-    if (!text.isEmpty())
+    if (!text.isEmpty() && !text.startsWith("Error"))
     {
         QClipboard *clipboard = QGuiApplication::clipboard();
         clipboard->setText(text);
-        QMessageBox::information(this, "OCR 完成", "识别到的文字已复制到剪贴板：\n\n" + text);
+
+        QString msg = "识别到的文字已复制到剪贴板：\n\n" + text;
+
+        // macOS 原生 API 的提示
+        if (backend == "Native")
+        {
+            msg += "\n\n------------------------------------------------\n"
+                   "提示：当前正在使用 macOS 原生 OCR API。\n"
+                   "如果需要更高级的 OCR 功能（如更多语言支持），\n"
+                   "请安装 Tesseract 库并在项目中进行配置。";
+        }
+
+        QMessageBox::information(this, "OCR 完成", msg);
     }
     else
     {
-        QMessageBox::warning(this, "OCR 失败", "未能识别到文字，或者当前系统不支持 OCR。");
+        QString errorMsg = text.isEmpty() ? "未能识别到文字。" : text;
+        QMessageBox::warning(this, "OCR 失败", errorMsg);
     }
 }
-#endif

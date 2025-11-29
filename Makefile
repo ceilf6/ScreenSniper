@@ -57,6 +57,7 @@ SOURCES       = main.cpp \
 		pinwidget.cpp \
 		screenshotwidget.cpp \
 		watermark_robust.cpp \
+		ocrmanager.cpp \
 		macocr.mm qrc_resources.cpp \
 		moc_mainwindow.cpp \
 		moc_pinwidget.cpp \
@@ -66,6 +67,7 @@ OBJECTS       = main.o \
 		pinwidget.o \
 		screenshotwidget.o \
 		watermark_robust.o \
+		ocrmanager.o \
 		macocr.o \
 		qrc_resources.o \
 		moc_mainwindow.o \
@@ -244,6 +246,7 @@ DIST          = /opt/homebrew/Cellar/qt@5/5.15.18/mkspecs/features/spec_pre.prf 
 		/opt/homebrew/Cellar/qt@5/5.15.18/mkspecs/features/qt_config.prf \
 		/opt/homebrew/Cellar/qt@5/5.15.18/mkspecs/macx-clang/qmake.conf \
 		/opt/homebrew/Cellar/qt@5/5.15.18/mkspecs/features/spec_post.prf \
+		.qmake.stash \
 		/opt/homebrew/Cellar/qt@5/5.15.18/mkspecs/features/exclusive_builds.prf \
 		/opt/homebrew/Cellar/qt@5/5.15.18/mkspecs/features/mac/sdk.prf \
 		/opt/homebrew/Cellar/qt@5/5.15.18/mkspecs/features/toolchain.prf \
@@ -275,11 +278,13 @@ DIST          = /opt/homebrew/Cellar/qt@5/5.15.18/mkspecs/features/spec_pre.prf 
 		mainwindow.h \
 		pinwidget.h \
 		screenshotwidget.h \
-		watermark_robust.h main.cpp \
+		watermark_robust.h \
+		ocrmanager.h main.cpp \
 		mainwindow.cpp \
 		pinwidget.cpp \
 		screenshotwidget.cpp \
 		watermark_robust.cpp \
+		ocrmanager.cpp \
 		macocr.mm
 QMAKE_TARGET  = ScreenSniper
 DESTDIR       = 
@@ -289,7 +294,7 @@ TARGET        = ScreenSniper.app/Contents/MacOS/ScreenSniper
 EXPORT_QMAKE_MAC_SDK = macosx
 EXPORT_QMAKE_MAC_SDK_VERSION = 15.5
 EXPORT_QMAKE_XCODE_DEVELOPER_PATH = /Library/Developer/CommandLineTools
-EXPORT__QMAKE_STASH_ = 
+EXPORT__QMAKE_STASH_ = /Users/ceilf/Desktop/ScreenSniper/.qmake.stash
 EXPORT_VALID_ARCHS = arm64
 EXPORT_DEFAULT_ARCHS = arm64
 EXPORT_ARCHS = $(filter $(EXPORT_VALID_ARCHS), $(if $(ARCHS), $(ARCHS), $(if $(EXPORT_DEFAULT_ARCHS), $(EXPORT_DEFAULT_ARCHS), $(EXPORT_VALID_ARCHS))))
@@ -478,6 +483,7 @@ Makefile: ScreenSniper.pro /opt/homebrew/Cellar/qt@5/5.15.18/mkspecs/macx-clang/
 		/opt/homebrew/Cellar/qt@5/5.15.18/mkspecs/features/qt_config.prf \
 		/opt/homebrew/Cellar/qt@5/5.15.18/mkspecs/macx-clang/qmake.conf \
 		/opt/homebrew/Cellar/qt@5/5.15.18/mkspecs/features/spec_post.prf \
+		.qmake.stash \
 		/opt/homebrew/Cellar/qt@5/5.15.18/mkspecs/features/exclusive_builds.prf \
 		/opt/homebrew/Cellar/qt@5/5.15.18/mkspecs/features/mac/sdk.prf \
 		/opt/homebrew/Cellar/qt@5/5.15.18/mkspecs/features/toolchain.prf \
@@ -684,6 +690,7 @@ Makefile: ScreenSniper.pro /opt/homebrew/Cellar/qt@5/5.15.18/mkspecs/macx-clang/
 /opt/homebrew/Cellar/qt@5/5.15.18/mkspecs/features/qt_config.prf:
 /opt/homebrew/Cellar/qt@5/5.15.18/mkspecs/macx-clang/qmake.conf:
 /opt/homebrew/Cellar/qt@5/5.15.18/mkspecs/features/spec_post.prf:
+.qmake.stash:
 /opt/homebrew/Cellar/qt@5/5.15.18/mkspecs/features/exclusive_builds.prf:
 /opt/homebrew/Cellar/qt@5/5.15.18/mkspecs/features/mac/sdk.prf:
 /opt/homebrew/Cellar/qt@5/5.15.18/mkspecs/features/toolchain.prf:
@@ -747,8 +754,8 @@ distdir: FORCE
 	$(COPY_FILE) --parents $(DIST) $(DISTDIR)/
 	$(COPY_FILE) --parents resources.qrc $(DISTDIR)/
 	$(COPY_FILE) --parents /opt/homebrew/Cellar/qt@5/5.15.18/mkspecs/features/data/dummy.cpp $(DISTDIR)/
-	$(COPY_FILE) --parents macocr.h mainwindow.h pinwidget.h screenshotwidget.h watermark_robust.h $(DISTDIR)/
-	$(COPY_FILE) --parents main.cpp mainwindow.cpp pinwidget.cpp screenshotwidget.cpp watermark_robust.cpp macocr.mm $(DISTDIR)/
+	$(COPY_FILE) --parents macocr.h mainwindow.h pinwidget.h screenshotwidget.h watermark_robust.h ocrmanager.h $(DISTDIR)/
+	$(COPY_FILE) --parents main.cpp mainwindow.cpp pinwidget.cpp screenshotwidget.cpp watermark_robust.cpp ocrmanager.cpp macocr.mm $(DISTDIR)/
 	$(COPY_FILE) --parents mainwindow.ui $(DISTDIR)/
 
 
@@ -759,6 +766,7 @@ clean: compiler_clean
 
 distclean: clean 
 	-$(DEL_FILE) -r ScreenSniper.app
+	-$(DEL_FILE) .qmake.stash
 	-$(DEL_FILE) Makefile
 
 
@@ -1168,7 +1176,7 @@ screenshotwidget.o: screenshotwidget.cpp screenshotwidget.h \
 		/opt/homebrew/opt/opencv/include/opencv4/opencv2/video/tracking.hpp \
 		/opt/homebrew/opt/opencv/include/opencv4/opencv2/video/background_segm.hpp \
 		watermark_robust.h \
-		macocr.h \
+		ocrmanager.h \
 		/opt/homebrew/Cellar/qt@5/5.15.18/lib/QtCore.framework/Headers/QString \
 		/opt/homebrew/Cellar/qt@5/5.15.18/lib/QtCore.framework/Headers/qstring.h \
 		/opt/homebrew/Cellar/qt@5/5.15.18/lib/QtWidgets.framework/Headers/QSpinBox \
@@ -1295,6 +1303,20 @@ watermark_robust.o: watermark_robust.cpp watermark_robust.h \
 		/opt/homebrew/opt/opencv/include/opencv4/opencv2/video/tracking.hpp \
 		/opt/homebrew/opt/opencv/include/opencv4/opencv2/video/background_segm.hpp
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o watermark_robust.o watermark_robust.cpp
+
+ocrmanager.o: ocrmanager.cpp ocrmanager.h \
+		/opt/homebrew/Cellar/qt@5/5.15.18/lib/QtCore.framework/Headers/QString \
+		/opt/homebrew/Cellar/qt@5/5.15.18/lib/QtCore.framework/Headers/qstring.h \
+		/opt/homebrew/Cellar/qt@5/5.15.18/lib/QtGui.framework/Headers/QPixmap \
+		/opt/homebrew/Cellar/qt@5/5.15.18/lib/QtGui.framework/Headers/qpixmap.h \
+		/opt/homebrew/Cellar/qt@5/5.15.18/lib/QtGui.framework/Headers/QImage \
+		/opt/homebrew/Cellar/qt@5/5.15.18/lib/QtGui.framework/Headers/qimage.h \
+		/opt/homebrew/Cellar/qt@5/5.15.18/lib/QtCore.framework/Headers/QDebug \
+		/opt/homebrew/Cellar/qt@5/5.15.18/lib/QtCore.framework/Headers/qdebug.h \
+		/opt/homebrew/Cellar/qt@5/5.15.18/lib/QtCore.framework/Headers/QBuffer \
+		/opt/homebrew/Cellar/qt@5/5.15.18/lib/QtCore.framework/Headers/qbuffer.h \
+		macocr.h
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o ocrmanager.o ocrmanager.cpp
 
 macocr.o: macocr.mm macocr.h \
 		/opt/homebrew/Cellar/qt@5/5.15.18/lib/QtCore.framework/Headers/QString \

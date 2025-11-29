@@ -12,6 +12,12 @@ macx {
     OBJECTIVE_SOURCES += macocr.mm
     HEADERS += macocr.h
     
+    # Tesseract configuration for macOS (Homebrew)
+    # Uncomment the following lines to use Tesseract instead of native Vision
+    DEFINES += USE_TESSERACT
+    INCLUDEPATH += /opt/homebrew/include
+    LIBS += -L/opt/homebrew/lib -ltesseract -lleptonica
+
     # OpenCV configuration for macOS (Homebrew)
     INCLUDEPATH += /opt/homebrew/opt/opencv/include/opencv4
     LIBS += -L/opt/homebrew/opt/opencv/lib \
@@ -56,6 +62,12 @@ win32 {
     INCLUDEPATH += "D:/C++/opencv/build/include/opencv2"
     DEPENDPATH += "D:/C++/opencv/build/include/opencv2"
 
+    # Tesseract configuration for Windows
+    # 请根据实际安装路径修改
+    # DEFINES += USE_TESSERACT
+    # INCLUDEPATH += "C:/Program Files/Tesseract-OCR/include"
+    # LIBS += -L"C:/Program Files/Tesseract-OCR/lib" -ltesseract51
+
     LIBS += -lPsapi -lDwmapi
     LIBS += -L"D:/C++/opencv/build/x64/vc16/lib"
 
@@ -81,13 +93,15 @@ SOURCES += \
     mainwindow.cpp \
     pinwidget.cpp \
     screenshotwidget.cpp \
-    watermark_robust.cpp
+    watermark_robust.cpp \
+    ocrmanager.cpp
 
 HEADERS += \
     mainwindow.h \
     pinwidget.h \
     screenshotwidget.h \
-    watermark_robust.h
+    watermark_robust.h \
+    ocrmanager.h
 
 FORMS += \
     mainwindow.ui
