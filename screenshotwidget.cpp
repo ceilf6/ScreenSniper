@@ -45,29 +45,29 @@
 
 ScreenshotWidget::ScreenshotWidget(QWidget *parent)
     : QWidget(parent),
+      m_adjectDirection(TopLeftCorner),
       selecting(false),
       selected(false),
-      currentDrawMode(None),
+      m_isadjust(false),
+      m_selectedWindow(true),
       toolbar(nullptr),
-      devicePixelRatio(1.0),
-      showMagnifier(false),
-      isDrawing(false),
-      textInput(nullptr),
-      isTextInputActive(false),
-      isTextMoving(false),
-      movingText(nullptr),
       currentPenColor(Qt::red),
       currentPenWidth(3),
       penToolbar(nullptr),
       shapesToolbar(nullptr),
       blurToolbar(nullptr),
+      devicePixelRatio(1.0),
+      showMagnifier(false),
+      textInput(nullptr),
+      isTextInputActive(false),
+      isTextMoving(false),
+      movingText(nullptr),
       currentTextFont("Arial", 18),
       currentTextColor(Qt::red),
       currentFontSize(18),
       editingTextIndex(-1),
-      m_selectedWindow(true),
-      m_isadjust(false),
-      m_adjectDirection(TopLeftCorner)
+      currentDrawMode(None),
+      isDrawing(false)
 {
     setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint | Qt::Tool);
     setAttribute(Qt::WA_TranslucentBackground);
@@ -1777,14 +1777,13 @@ void ScreenshotWidget::saveScreenshot()
         }
 
         // 保存图片
-        bool saveSuccess = false;
         if (suffix == "png")
         {
-            saveSuccess = croppedPixmap.save(fileName, "PNG", 100);
+            croppedPixmap.save(fileName, "PNG", 100);
         }
         else if (suffix == "jpg" || suffix == "jpeg")
         {
-            saveSuccess = croppedPixmap.save(fileName, "JPEG", 95);
+            croppedPixmap.save(fileName, "JPEG", 95);
         }
         emit screenshotTaken(); // 发射截图完成信号
         hide();                 // 隐藏当前窗口
@@ -2588,22 +2587,35 @@ QList<WindowInfo> ScreenshotWidget::enumAllValidWindows()
 void ScreenshotWidget::captureWindow(QPoint mousePos)
 {
     // 遍历窗口列表，找到鼠标所在的顶层窗口
-    for (const auto& window : m_validWindows) {
+    for (const auto &window : m_validWindows)
+    {
+#ifdef Q_OS_WIN
         // 使用精准边界判断（适配DWM和高DPI）
         QRect accurateRect = getAccurateWindowRect(window.hwnd);
-        if (accurateRect.contains(mousePos)) {
+        if (accurateRect.contains(mousePos))
+        {
             m_hoverWindow = window;
             break; // 顶层窗口优先（枚举顺序为顶层在前）
         }
+#else
+        // macOS: 直接使用窗口矩形
+        if (window.rect.contains(mousePos))
+        {
+            m_hoverWindow = window;
+            break;
+        }
+#endif
     }
 }
 
 #ifdef Q_OS_WIN
-BOOL CALLBACK ScreenshotWidget::EnumWindowsProc(HWND hwnd, LPARAM lParam) {
-    QList<WindowInfo>* windowList = reinterpret_cast<QList<WindowInfo>*>(lParam);
+BOOL CALLBACK ScreenshotWidget::EnumWindowsProc(HWND hwnd, LPARAM lParam)
+{
+    QList<WindowInfo> *windowList = reinterpret_cast<QList<WindowInfo> *>(lParam);
 
     // 过滤：无效句柄、隐藏窗口、最小化窗口
-    if (!hwnd || !IsWindowVisible(hwnd) || IsIconic(hwnd)) {
+    if (!hwnd || !IsWindowVisible(hwnd) || IsIconic(hwnd))
+    {
         return TRUE;
     }
 
@@ -2613,39 +2625,43 @@ BOOL CALLBACK ScreenshotWidget::EnumWindowsProc(HWND hwnd, LPARAM lParam) {
     LONG_PTR style = GetWindowLongPtrW(hwnd, GWL_STYLE);
 
     // 过滤无标题或系统设置窗口
-    if (title.isEmpty()) {
-        if ((style & WS_CHILD) || ((style & WS_POPUP) && !(style & WS_CAPTION))) {
+    if (title.isEmpty())
+    {
+        if ((style & WS_CHILD) || ((style & WS_POPUP) && !(style & WS_CAPTION)))
+        {
             return TRUE;
         }
     }
 
-    //过滤透明窗口
+    // 过滤透明窗口
     style = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
-    if(style & WS_EX_TRANSPARENT)
+    if (style & WS_EX_TRANSPARENT)
     {
         return TRUE;
     }
 
-    //过滤幻影窗口
+    // 过滤幻影窗口
     DWORD CloakedVal = 0;
     HRESULT hRes = ::DwmGetWindowAttribute(hwnd, DWMWA_CLOAKED, &CloakedVal, sizeof(CloakedVal));
 
     // 调用成功且窗口被隐藏
-    if(SUCCEEDED(hRes) && (CloakedVal != 0)){
+    if (SUCCEEDED(hRes) && (CloakedVal != 0))
+    {
         return TRUE;
     }
-
 
     // 过滤自身进程窗口
     DWORD pid = 0;
     GetWindowThreadProcessId(hwnd, &pid);
     HANDLE hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
-    if (hProcess) {
+    if (hProcess)
+    {
         WCHAR exeName[256] = {0};
         GetModuleBaseNameW(hProcess, nullptr, exeName, _countof(exeName));
         CloseHandle(hProcess);
         // 直接比较宽字符
-        if (QString::fromWCharArray(exeName) == QCoreApplication::applicationName()) {
+        if (QString::fromWCharArray(exeName) == QCoreApplication::applicationName())
+        {
             return TRUE;
         }
     }
@@ -2657,20 +2673,23 @@ BOOL CALLBACK ScreenshotWidget::EnumWindowsProc(HWND hwnd, LPARAM lParam) {
     int height = winRect.bottom - winRect.top;
 
     // 过滤过小窗口
-    if (width < 50 && height < 50) {
+    if (width < 50 && height < 50)
+    {
         return TRUE;
     }
 
     // 过滤全屏空窗口
-    QScreen* primaryScreen = QGuiApplication::primaryScreen();
+    QScreen *primaryScreen = QGuiApplication::primaryScreen();
     QRect screenRect = primaryScreen->geometry();
     bool isNearFullScreen = (qAbs(width - screenRect.width()) < 20) &&
                             (qAbs(height - screenRect.height()) < 20);
 
-    if (isNearFullScreen) {
+    if (isNearFullScreen)
+    {
         bool hasValidChild = false;
         EnumChildWindows(hwnd, EnumChildProc, reinterpret_cast<LPARAM>(&hasValidChild));
-        if (!hasValidChild) {
+        if (!hasValidChild)
+        {
             return TRUE;
         }
     }
@@ -2684,16 +2703,19 @@ BOOL CALLBACK ScreenshotWidget::EnumWindowsProc(HWND hwnd, LPARAM lParam) {
     return TRUE;
 }
 
-BOOL CALLBACK ScreenshotWidget::EnumChildProc(HWND childHwnd, LPARAM lParam) {
-    bool* pHasValid = reinterpret_cast<bool*>(lParam);
-    if (IsWindowVisible(childHwnd)) {
+BOOL CALLBACK ScreenshotWidget::EnumChildProc(HWND childHwnd, LPARAM lParam)
+{
+    bool *pHasValid = reinterpret_cast<bool *>(lParam);
+    if (IsWindowVisible(childHwnd))
+    {
         RECT childRect;
         GetWindowRect(childHwnd, &childRect);
         int cw = childRect.right - childRect.left;
         int ch = childRect.bottom - childRect.top;
 
         // 子窗口有效尺寸判断
-        if (cw > 50 && ch > 50) {
+        if (cw > 50 && ch > 50)
+        {
             *pHasValid = true;
             return FALSE; // 找到即停止枚举
         }
@@ -2702,23 +2724,23 @@ BOOL CALLBACK ScreenshotWidget::EnumChildProc(HWND childHwnd, LPARAM lParam) {
 }
 
 // 精准获取窗口边界
-QRect ScreenshotWidget::getAccurateWindowRect(HWND hwnd) {
+QRect ScreenshotWidget::getAccurateWindowRect(HWND hwnd)
+{
     // 先尝试读取Windows DWM扩展边框
     RECT extendedFrameRect;
     HRESULT hr = DwmGetWindowAttribute(
         hwnd,
         DWMWA_EXTENDED_FRAME_BOUNDS,
         &extendedFrameRect,
-        sizeof(extendedFrameRect)
-        );
-    if (SUCCEEDED(hr)) {
+        sizeof(extendedFrameRect));
+    if (SUCCEEDED(hr))
+    {
         // 高DPI适配：除以设备像素比
         return QRect(
             extendedFrameRect.left / devicePixelRatio,
             extendedFrameRect.top / devicePixelRatio,
             (extendedFrameRect.right - extendedFrameRect.left) / devicePixelRatio,
-            (extendedFrameRect.bottom - extendedFrameRect.top) / devicePixelRatio
-            );
+            (extendedFrameRect.bottom - extendedFrameRect.top) / devicePixelRatio);
     }
 
     // 备用方案：获取普通窗口矩形并适配DPI
