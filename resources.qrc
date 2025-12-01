@@ -16,4 +16,9 @@
         <file>icons/arrow.svg</file>
         <file>icons/color_picker.svg</file>
     </qresource>
+    <qresource prefix="/locales">
+        <file>locales/zh.json</file>
+        <file>locales/en.json</file>
+        <file>locales/zhHK.json</file>
+    </qresource>
 </RCC>

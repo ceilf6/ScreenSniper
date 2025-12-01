@@ -57,7 +57,8 @@ local_config.pri
 # Node.js / npm
 node_modules/
 locales-package/
-locales/
+# 注意：locales/ 目录需要提交到版本控制，因为会被打包到 Qt 资源中
+# locales/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

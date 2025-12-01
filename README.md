@@ -56,7 +56,21 @@ brew install tesseract # 可选，用于增强 OCR
    - **macOS**: 如果使用 Homebrew 安装了 Tesseract/OpenCV，通常只需取消注释对应块。
    - **Windows**: 需要修改为您实际的安装路径。
 
-### 3. 编译步骤
+### 3. 安装翻译文件
+
+项目使用 npm 管理翻译文件。在首次构建前，需要安装翻译文件：
+
+```bash
+# 安装依赖（包括翻译文件）
+npm install
+
+# 将翻译文件复制到 locales 目录
+npm run install-locales
+```
+
+**注意**：翻译文件已经打包到 Qt 资源文件中，会被编译到可执行文件。如果修改了翻译文件，需要重新编译才能生效。
+
+### 4. 编译步骤
 
 **命令行编译:**
 ```bash
@@ -64,7 +78,11 @@ brew install tesseract # 可选，用于增强 OCR
 git clone https://github.com/ceilf6/ScreenSniper.git
 cd ScreenSniper
 
-# 2. 运行构建脚本 (macOS/Linux)
+# 2. 安装翻译文件
+npm install
+npm run install-locales
+
+# 3. 运行构建脚本 (macOS/Linux)
 ./build.sh
 
 # 或者手动编译
@@ -76,8 +94,24 @@ make
 **使用 Qt Creator:**
 1. 打开 Qt Creator。
 2. 选择 "文件" -> "打开文件或项目"，选择 `ScreenSniper.pro`。
-3. 配置项目构建套件。
-4. 点击 "运行" 按钮。
+3. **重要**：在编译前先运行 `npm install && npm run install-locales` 安装翻译文件。
+4. 配置项目构建套件。
+5. 点击 "运行" 按钮。
+
+### 常见问题
+
+**Q: 编译时提示 "无法打开语言文件：locales/zh.json"**
+
+A: 这是因为翻译文件未安装。解决方法：
+```bash
+npm install
+npm run install-locales
+```
+然后重新编译项目。翻译文件会被打包到 Qt 资源中。
+
+**Q: Windows 上提示 "QSystemTrayIcon::setVisible: No Icon set"**
+
+A: 这是因为系统托盘图标未正确设置。确保项目中有托盘图标资源文件，或在代码中设置默认图标。
 
 ## OCR 功能说明
 

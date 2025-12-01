@@ -287,6 +287,7 @@ void MainWindow::switchLanguage(const QString &language)
     if (!file.open(QIODevice::ReadOnly))
     {
         qWarning() << "无法打开语言文件:" << langFile;
+        qWarning() << "提示: 如果是首次编译，请先运行 'npm install && npm run install-locales' 安装翻译文件";
         translations = QJsonObject(); // 清空翻译
         return;
     }
