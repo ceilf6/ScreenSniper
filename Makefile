@@ -789,6 +789,7 @@ compiler_rcc_clean:
 qrc_resources.cpp: resources.qrc \
 		/opt/homebrew/Cellar/qt@5/5.15.18/bin/rcc \
 		icons/mosaic.svg \
+		icons/arrow.svg \
 		icons/save.svg \
 		icons/blur.svg \
 		icons/shapes.svg \
@@ -796,9 +797,12 @@ qrc_resources.cpp: resources.qrc \
 		icons/ocr.svg \
 		icons/pin.svg \
 		icons/cancel.svg \
+		icons/ellipse.svg \
 		icons/copy.svg \
+		icons/rectangle.svg \
 		icons/pen.svg \
-		icons/watermark.svg
+		icons/watermark.svg \
+		icons/color_picker.svg
 	/opt/homebrew/Cellar/qt@5/5.15.18/bin/rcc -name resources resources.qrc -o qrc_resources.cpp
 
 compiler_moc_predefs_make_all: moc_predefs.h

@@ -2254,25 +2254,23 @@ void ScreenshotWidget::setupPenToolbar()
     penLayout->setSpacing(5);
     penLayout->setContentsMargins(10, 8, 10, 8);
 
-    // 颜色选择按钮
-    QPushButton *btnColorPicker = new QPushButton("颜色", penToolbar);
+    // 颜色选择按钮 - 优化为圆形色盘
+    QPushButton *btnColorPicker = new QPushButton(penToolbar);
     btnColorPicker->setObjectName("colorBtn");
+    btnColorPicker->setToolTip("选择颜色");
     btnColorPicker->setStyleSheet(QString(
                                       "QPushButton#colorBtn{"
                                       "background-color:%1; "
-                                      "color:%2; "
-                                      "border: 2px solid white; "
-                                      "font-weight: bold; "
-                                      "min-width: 80px; "
-                                      "padding: 12px 18px; "
-                                      "margin: 5px 10px; "
+                                      "border: 2px solid rgba(255,255,255,0.6); "
+                                      "border-radius: 18px; "
+                                      "min-width: 40px; "
+                                      "min-height: 36px; "
+                                      "padding: 0px; "
                                       "}"
                                       "QPushButton#colorBtn:hover{ "
-                                      "background=color: %3; "
+                                      "border: 2px solid rgba(255,255,255,0.9); "
                                       "}")
-                                      .arg(currentPenColor.name())
-                                      .arg(currentPenColor.lightness() < 128 ? "white" : "black")
-                                      .arg(currentPenColor.lighter(120).name()));
+                                      .arg(currentPenColor.name()));
 
     // 粗细调节按钮
     btnPenWidthUp = new QPushButton("+", penToolbar);
@@ -2311,15 +2309,18 @@ void ScreenshotWidget::setupPenToolbar()
     connect(this, &ScreenshotWidget::penColorChanged, this, [btnColorPicker, previewCanvas, this]()
             {
        btnColorPicker->setStyleSheet(QString(
-            "QPushButton{ "
+            "QPushButton#colorBtn{ "
             "background-color: %1; "
-            "color: %2; "
-            "border: 2px solid white; "
-            "font-weight: bold; "
-            "min-width: 80px; "
+            "border: 2px solid rgba(255,255,255,0.6); "
+            "border-radius: 18px; "
+            "min-width: 40px; "
+            "min-height: 36px; "
+            "padding: 0px; "
             "}"
-            ).arg(currentPenColor.name())
-             .arg(currentPenColor.lightness()<128?"white":"black"));
+            "QPushButton#colorBtn:hover{ "
+            "border: 2px solid rgba(255,255,255,0.9); "
+            "}"
+            ).arg(currentPenColor.name()));
        updatePreviewCanvas(previewCanvas); });
 }
 
@@ -2912,36 +2913,56 @@ void ScreenshotWidget::setupShapesToolbar()
     shapesToolbar->setStyleSheet(
         "QWidget { background-color: rgba(40, 40, 40, 200); border-radius: 5px; }"
         "QPushButton { background-color: rgba(60, 60, 60, 255); color: white; "
-        "border: none; padding: 8px 15px; border-radius: 3px; font-size: 13px; }"
+        "border: none; padding: 6px; border-radius: 3px; }"
         "QPushButton:hover { background-color: rgba(80, 80, 80, 255); }"
         "QPushButton:pressed { background-color: rgba(50, 50, 50, 255); }"
         "QLabel { background-color: transparent; color: white; padding: 5px; font-size: 12px; }"
-        "QPushButton:checked { background-color: rgba(0, 150, 255, 255); }");
+        "QPushButton:checked { background-color: rgba(0, 150, 255, 255); }"
+        "QPushButton#colorBtn { min-width: 40px; min-height: 36px; border: 2px solid rgba(255,255,255,0.6); border-radius: 18px; padding: 0px; }"
+        "QPushButton#colorBtn:hover { border: 2px solid rgba(255,255,255,0.9); }");
 
     QHBoxLayout *layout = new QHBoxLayout(shapesToolbar);
     layout->setSpacing(5);
     layout->setContentsMargins(10, 8, 10, 8);
 
-    btnRect = new QPushButton("矩形", shapesToolbar);
+    btnRect = new QPushButton(shapesToolbar);
+    btnRect->setIcon(QIcon(":/icons/icons/rectangle.svg"));
+    btnRect->setIconSize(QSize(20, 20));
+    btnRect->setToolTip("矩形");
+    btnRect->setFixedSize(36, 36);
     btnRect->setCheckable(true);
-    btnEllipse = new QPushButton("椭圆", shapesToolbar);
+
+    btnEllipse = new QPushButton(shapesToolbar);
+    btnEllipse->setIcon(QIcon(":/icons/icons/ellipse.svg"));
+    btnEllipse->setIconSize(QSize(20, 20));
+    btnEllipse->setToolTip("椭圆");
+    btnEllipse->setFixedSize(36, 36);
     btnEllipse->setCheckable(true);
-    btnArrow = new QPushButton("箭头", shapesToolbar);
+
+    btnArrow = new QPushButton(shapesToolbar);
+    btnArrow->setIcon(QIcon(":/icons/icons/arrow.svg"));
+    btnArrow->setIconSize(QSize(20, 20));
+    btnArrow->setToolTip("箭头");
+    btnArrow->setFixedSize(36, 36);
     btnArrow->setCheckable(true);
 
-    // 形状颜色选择
-    btnShapeColor = new QPushButton("颜色", shapesToolbar);
+    // 形状颜色选择 - 优化为圆形色盘
+    btnShapeColor = new QPushButton(shapesToolbar);
     btnShapeColor->setObjectName("colorBtn");
+    btnShapeColor->setToolTip("选择颜色");
     btnShapeColor->setStyleSheet(QString(
                                      "QPushButton#colorBtn{"
                                      "background-color:%1; "
-                                     "color:%2; "
-                                     "border: 2px solid white; "
-                                     "font-weight: bold; "
-                                     "min-width: 60px; "
+                                     "border: 2px solid rgba(255,255,255,0.6); "
+                                     "border-radius: 18px; "
+                                     "min-width: 40px; "
+                                     "min-height: 36px; "
+                                     "padding: 0px; "
+                                     "}"
+                                     "QPushButton#colorBtn:hover{"
+                                     "border: 2px solid rgba(255,255,255,0.9); "
                                      "}")
-                                     .arg(currentPenColor.name())
-                                     .arg(currentPenColor.lightness() < 128 ? "white" : "black"));
+                                     .arg(currentPenColor.name()));
 
     // 形状粗细
     btnShapeWidthDown = new QPushButton("-", shapesToolbar);
@@ -2987,6 +3008,25 @@ void ScreenshotWidget::setupShapesToolbar()
     connect(btnShapeColor, &QPushButton::clicked, this, &ScreenshotWidget::onColorPickerClicked);
     connect(btnShapeWidthUp, &QPushButton::clicked, this, &ScreenshotWidget::increasePenWidth);
     connect(btnShapeWidthDown, &QPushButton::clicked, this, &ScreenshotWidget::decreasePenWidth);
+
+    // 颜色改变时更新形状颜色按钮
+    connect(this, &ScreenshotWidget::penColorChanged, this, [this]()
+            {
+        if (btnShapeColor) {
+            btnShapeColor->setStyleSheet(QString(
+                "QPushButton#colorBtn{"
+                "background-color:%1; "
+                "border: 2px solid rgba(255,255,255,0.6); "
+                "border-radius: 18px; "
+                "min-width: 40px; "
+                "min-height: 36px; "
+                "padding: 0px; "
+                "}"
+                "QPushButton#colorBtn:hover{"
+                "border: 2px solid rgba(255,255,255,0.9); "
+                "}"
+            ).arg(currentPenColor.name()));
+        } });
 }
 
 void ScreenshotWidget::updateShapesToolbarPosition()
