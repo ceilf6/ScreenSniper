@@ -185,7 +185,7 @@ private:
 #endif
 
     // 精准获取窗口边界（跨平台）
-    QRect getAccurateWindowRect(const WindowInfo& window);
+    QRect getAccurateWindowRect(const WindowInfo &window);
 
     // 画笔相关函数
     void setupPenToolbar();

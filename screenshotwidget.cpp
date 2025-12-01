@@ -2723,7 +2723,7 @@ BOOL CALLBACK ScreenshotWidget::EnumChildProc(HWND childHwnd, LPARAM lParam)
 #endif
 
 // 精准获取窗口边界（跨平台）
-QRect ScreenshotWidget::getAccurateWindowRect(const WindowInfo& window)
+QRect ScreenshotWidget::getAccurateWindowRect(const WindowInfo &window)
 {
 #ifdef Q_OS_WIN
     // Windows: 先尝试读取DWM扩展边框
