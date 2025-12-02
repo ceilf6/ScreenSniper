@@ -55,12 +55,21 @@ unix:!macx {
 }
 win32 {
     # Windows 配置
-    INCLUDEPATH += "D:/C++/opencv/build/include"
-    DEPENDPATH += "D:/C++/opencv/build/include"
+    # OpenCV暂时禁用（MinGW与MSVC库不兼容）
+    # INCLUDEPATH += "D:/C++/opencv/build/include"
+    # DEPENDPATH += "D:/C++/opencv/build/include"
+    # INCLUDEPATH += "D:/C++/opencv/build/include/opencv2"
+    # DEPENDPATH += "D:/C++/opencv/build/include/opencv2"
+    # LIBS += -L"D:/C++/opencv/build/x64/vc16/lib"
+    # CONFIG(debug, debug|release) {
+    #     LIBS += -lopencv_world480d
+    #     DEFINES += OPENCV_DEBUG
+    # } else {
+    #     LIBS += -lopencv_world480
+    # }
 
-    # 显式添加 opencv2 子目录
-    INCLUDEPATH += "D:/C++/opencv/build/include/opencv2"
-    DEPENDPATH += "D:/C++/opencv/build/include/opencv2"
+    # 禁用水印功能
+    DEFINES += NO_OPENCV
 
     # Tesseract configuration for Windows
     # 请根据实际安装路径修改
@@ -69,14 +78,6 @@ win32 {
     # LIBS += -L"C:/Program Files/Tesseract-OCR/lib" -ltesseract51
 
     LIBS += -lPsapi -lDwmapi
-    LIBS += -L"D:/C++/opencv/build/x64/vc16/lib"
-
-    CONFIG(debug, debug|release) {
-        LIBS += -lopencv_world4120d
-        DEFINES += OPENCV_DEBUG
-    } else {
-        LIBS += -lopencv_world4120
-    }
 }
 
 
@@ -93,14 +94,12 @@ SOURCES += \
     mainwindow.cpp \
     pinwidget.cpp \
     screenshotwidget.cpp \
-    watermark_robust.cpp \
     ocrmanager.cpp
 
 HEADERS += \
     mainwindow.h \
     pinwidget.h \
     screenshotwidget.h \
-    watermark_robust.h \
     ocrmanager.h
 
 FORMS += \

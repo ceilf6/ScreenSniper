@@ -1,0 +1,12 @@
+INPUT(
+./debug\main.o
+./debug\mainwindow.o
+./debug\pinwidget.o
+./debug\screenshotwidget.o
+./debug\watermark_robust.o
+./debug\ocrmanager.o
+./debug\qrc_resources.o
+./debug\moc_mainwindow.o
+./debug\moc_pinwidget.o
+./debug\moc_screenshotwidget.o
+);

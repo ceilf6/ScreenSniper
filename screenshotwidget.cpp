@@ -21,8 +21,10 @@
 #include <QLineEdit>
 #include <QFontDialog>
 #include <QColorDialog>
+#ifndef NO_OPENCV
 #include <opencv2/opencv.hpp>
 #include "watermark_robust.h"
+#endif
 #include "ocrmanager.h"
 
 #include <QSpinBox>
@@ -145,11 +147,13 @@ void ScreenshotWidget::setupToolbar()
     btnBlur->setToolTip("高斯模糊");
     btnBlur->setFixedSize(36, 36);
 
+#ifndef NO_OPENCV
     btnWatermark = new QPushButton(toolbar);
     btnWatermark->setIcon(QIcon(":/icons/icons/watermark.svg"));
     btnWatermark->setIconSize(QSize(20, 20));
     btnWatermark->setToolTip("隐水印");
     btnWatermark->setFixedSize(36, 36);
+#endif
 
     btnOCR = new QPushButton(toolbar);
     btnOCR->setIcon(QIcon(":/icons/icons/ocr.svg"));
@@ -188,7 +192,9 @@ void ScreenshotWidget::setupToolbar()
 
     layout->addWidget(btnMosaic);    // 马赛克按钮
     layout->addWidget(btnBlur);      // 高斯模糊按钮
+#ifndef NO_OPENCV
     layout->addWidget(btnWatermark); // 水印按钮
+#endif
     layout->addWidget(btnOCR);       // OCR 按钮
 
     layout->addSpacing(10);
@@ -267,10 +273,12 @@ void ScreenshotWidget::setupToolbar()
                 currentDrawMode = Blur;
                 toolbar->show();
                 toggleSubToolbar(nullptr); });
+#ifndef NO_OPENCV
     connect(btnWatermark, &QPushButton::clicked, this, [this]()
             {
         toggleSubToolbar(nullptr);
         showWatermarkDialog(); });
+#endif
 
     connect(btnStrengthUp, &QPushButton::clicked, this, &ScreenshotWidget::increaseEffectStrength);
     connect(btnStrengthDown, &QPushButton::clicked, this, &ScreenshotWidget::decreaseEffectStrength);
@@ -1444,9 +1452,7 @@ void ScreenshotWidget::updateEffectToolbarPosition()
     int toolbarWidth = EffectToolbar->sizeHint().width();
     int toolbarHeight = EffectToolbar->sizeHint().height();
 
-    QScreen *screen = QGuiApplication::screenAt(geometry().center());
-    if (!screen)
-        screen = QGuiApplication::primaryScreen();
+    QScreen *screen = QGuiApplication::primaryScreen();
     QRect availableGeometry = screen->availableGeometry();
     QPoint globalPos = mapToGlobal(QPoint(0, 0)); // 以左上角原点为基点，实现坐标系转换
 
@@ -1498,11 +1504,7 @@ void ScreenshotWidget::updateToolbarPosition()
     int toolbarHeight = toolbar->sizeHint().height();
 
     // 获取当前屏幕的可用区域（避开 Dock 和菜单栏）
-    // QScreen* screen = QGuiApplication::screenAt(geometry().center());
-    QScreen *screen = QGuiApplication::screenAt(geometry().center());
-
-    if (!screen)
-        screen = QGuiApplication::primaryScreen();
+    QScreen *screen = QGuiApplication::primaryScreen();
 
     // availableGeometry 是全局坐标
     QRect availableGeometry = screen->availableGeometry();
@@ -1697,6 +1699,7 @@ void ScreenshotWidget::saveScreenshot()
         croppedPixmap = processedPixmap;
     }
     // ==================== 嵌入水印 ====================
+#ifndef NO_OPENCV
     if (!watermarkText.isEmpty())
     {
         qDebug() << "开始嵌入水印:" << watermarkText;
@@ -1753,6 +1756,7 @@ void ScreenshotWidget::saveScreenshot()
     {
         qDebug() << "未设置水印内容";
     }
+#endif
     // 获取默认保存路径
     QString defaultPath = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
     QString defaultFileName = defaultPath + "/screenshot_" +
@@ -2391,9 +2395,7 @@ void ScreenshotWidget::updatePenToolbarPosition()
     int toolbarHeight = penToolbar->sizeHint().height();
 
     // 获取可用区域（避开Dock栏）
-    QScreen *screen = QGuiApplication::screenAt(geometry().center());
-    if (!screen)
-        screen = QGuiApplication::primaryScreen();
+    QScreen *screen = QGuiApplication::primaryScreen();
     QRect availableGeometry = screen->availableGeometry();
     QPoint globalPos = mapToGlobal(QPoint(0, 0));
 
@@ -2589,7 +2591,7 @@ void ScreenshotWidget::captureWindow(QPoint mousePos)
     {
 #ifdef Q_OS_WIN
         // 使用精准边界判断（适配DWM和高DPI）
-        QRect accurateRect = getAccurateWindowRect(window.hwnd);
+        QRect accurateRect = getAccurateWindowRect(window);
         if (accurateRect.contains(mousePos))
         {
             m_hoverWindow = window;
@@ -2755,6 +2757,7 @@ QRect ScreenshotWidget::getAccurateWindowRect(const WindowInfo &window)
     return window.rect;
 #endif
 }
+#ifndef NO_OPENCV
 void ScreenshotWidget::showWatermarkDialog() // 嵌入水印
 {
     QDialog dlg(this);
@@ -2803,6 +2806,7 @@ void ScreenshotWidget::showWatermarkDialog() // 嵌入水印
         QMessageBox::information(this, "成功", "隐水印参数设置成功！\n保存截图时将自动嵌入水印。");
     }
 }
+#endif
 
 void ScreenshotWidget::mouseIsAdjust(QPoint mousePos)
 {
@@ -3040,9 +3044,7 @@ void ScreenshotWidget::updateShapesToolbarPosition()
     int toolbarHeight = shapesToolbar->sizeHint().height();
 
     // 获取可用区域（避开Dock栏）
-    QScreen *screen = QGuiApplication::screenAt(geometry().center());
-    if (!screen)
-        screen = QGuiApplication::primaryScreen();
+    QScreen *screen = QGuiApplication::primaryScreen();
     QRect availableGeometry = screen->availableGeometry();
     QPoint globalPos = mapToGlobal(QPoint(0, 0));
 
@@ -3194,9 +3196,7 @@ void ScreenshotWidget::updateFontToolbarPosition()
     int toolbarHeight = fontToolbar->sizeHint().height();
 
     // 获取可用区域（避开Dock栏）
-    QScreen *screen = QGuiApplication::screenAt(geometry().center());
-    if (!screen)
-        screen = QGuiApplication::primaryScreen();
+    QScreen *screen = QGuiApplication::primaryScreen();
     QRect availableGeometry = screen->availableGeometry();
     QPoint globalPos = mapToGlobal(QPoint(0, 0));
 

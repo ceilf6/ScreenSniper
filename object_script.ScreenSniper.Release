@@ -1,0 +1,12 @@
+INPUT(
+./release\main.o
+./release\mainwindow.o
+./release\pinwidget.o
+./release\screenshotwidget.o
+./release\watermark_robust.o
+./release\ocrmanager.o
+./release\qrc_resources.o
+./release\moc_mainwindow.o
+./release\moc_pinwidget.o
+./release\moc_screenshotwidget.o
+);
