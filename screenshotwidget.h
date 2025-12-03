@@ -47,6 +47,9 @@ struct DrawnText
     QFont font;
 };
 
+    // 当前正在编辑的文字索引（-1表示没有正在编辑的文字）
+    int editingTextIndex;
+
 //画笔数据结构
 struct DrawnPenStroke
 {
@@ -60,7 +63,7 @@ class ScreenshotWidget : public QWidget
     Q_OBJECT
 
 public:
-    explicit ScreenshotWidget(QWidget *parent = nullptr);
+    explicit ScreenshotWidget(QWidget* parent = nullptr);
     ~ScreenshotWidget();
 
     void startCapture();
@@ -69,16 +72,28 @@ public:
 signals:
     void screenshotTaken();
     void screenshotCancelled();
+    void penColorChanged();
 
 protected:
-    void paintEvent(QPaintEvent *event) override;
-    void mousePressEvent(QMouseEvent *event) override;
-    void mouseMoveEvent(QMouseEvent *event) override;
-    void mouseReleaseEvent(QMouseEvent *event) override;
-    void keyPressEvent(QKeyEvent *event) override;
+    void paintEvent(QPaintEvent* event) override;
+    void mousePressEvent(QMouseEvent* event) override;
+    void mouseMoveEvent(QMouseEvent* event) override;
+    void mouseReleaseEvent(QMouseEvent* event) override;
+    void mouseDoubleClickEvent(QMouseEvent* event) override;
+    void keyPressEvent(QKeyEvent* event) override;
 
 private slots:
     void onTextInputFinished();
+    void onColorPickerClicked();
+    void onPenButtonClicked();
+    void increasePenWidth();
+    void decreasePenWidth();
+    void updatePenWidthLabel();
+    void onTextColorClicked();
+    void increaseFontSize();
+    void decreaseFontSize();
+    void onFontFamilyClicked();
+    void onFontSizeInputChanged();
 
 private:
 
@@ -98,29 +113,42 @@ private:
         Pen,
         Mosaic,
         Blur
-    };DrawMode currentDrawMode;
+    }; DrawMode currentDrawMode;
     QList<DrawMode> effectTypes;        // 存储效果类型
     void increaseEffectStrength();
     void decreaseEffectStrength();
     void setupEffectToolbar(); // 新增工具栏设置
-    QPixmap applyEffect(const QPixmap &source, const QRect &area, int strength, DrawMode mode);//模糊应用函数
-    QPixmap applyBlur(const QPixmap &source, const QRect &area, int radius);//高斯模糊应用
-    QPixmap applyMosaic(const QPixmap &source, const QRect &area, int strength);//马赛克应用
+    QPixmap applyEffect(const QPixmap& source, const QRect& area, int strength, DrawMode mode);//模糊应用函数
+    QPixmap applyBlur(const QPixmap& source, const QRect& area, int radius);//高斯模糊应用
+    QPixmap applyMosaic(const QPixmap& source, const QRect& area, int strength);//马赛克应用
     void setupToolbar();
     void updateToolbarPosition();
-    void updatePreviewCanvas(QLabel *canvas);
+    void updatePreviewCanvas(QLabel* canvas);
 
     void saveScreenshot();
     void copyToClipboard();
     void cancelCapture();
-    void drawArrow(QPainter &painter, const QPointF &start, const QPointF &end, const QColor &color, int width, double scale = 1.0);
+    void drawArrow(QPainter& painter, const QPointF& start, const QPointF& end, const QColor& color, int width, double scale = 1.0);
     void updateEffectToolbarPosition();
     void updateStrengthLabel();
 
     //添加文本相关函数
     void setupTextInput();
-    void drawText(QPainter &painter, const QPoint &position, const QString &text, const QColor &color, const QFont &font);
+    void drawText(QPainter& painter, const QPoint& position, const QString& text, const QColor& color, const QFont& font);
+    void setTextToolbar();
+    void updateFontToolbar();
+    void updateTextInputStyle();
+    void updateTextInputSize();
+    void handleTextModeClick(const QPoint& clickPos);
+    void updateFontToolbarPosition();
+    void editExistingText(int textIndex);
+    void handleNoneMode(const QPoint& clickPos);
 
+
+
+    //画笔相关函数
+    void setupPenToolbar();
+    void updatePenToolbarPosition();
 
     QPixmap screenPixmap; // 屏幕截图
     QPoint startPoint;    // 选择起始点
@@ -130,20 +158,20 @@ private:
     QRect selectedRect;   // 选中的矩形区域
 
     // 工具栏
-    QWidget *toolbar;
-    QPushButton *btnSave;
-    QPushButton *btnCopy;
-    QPushButton *btnCancel;
-    QPushButton *btnRect;  // 矩形工具
-    QPushButton *btnEllipse;//椭圆工具
-    QPushButton *btnArrow; // 箭头工具
-    QPushButton *btnText;  // 文字工具
-    QPushButton *btnPen;   // 画笔工具
-    QPushButton *btnMosaic;  // 马赛克按钮
-    QPushButton *btnBlur;//高斯模糊按钮
+    QWidget* toolbar;
+    QPushButton* btnSave;
+    QPushButton* btnCopy;
+    QPushButton* btnCancel;
+    QPushButton* btnRect;  // 矩形工具
+    QPushButton* btnEllipse;//椭圆工具
+    QPushButton* btnArrow; // 箭头工具
+    QPushButton* btnText;  // 文字工具
+    QPushButton* btnPen;   // 画笔工具
+    QPushButton* btnMosaic;  // 马赛克按钮
+    QPushButton* btnBlur;//高斯模糊按钮
 
     // 尺寸显示标签
-    QLabel *sizeLabel;
+    QLabel* sizeLabel;
 
 
 
@@ -157,26 +185,32 @@ private:
     // 强度调节工具栏
     int currentEffectStrength = 20;//强度
     int EffectBlockSize;     // 块大小
-    QWidget *EffectToolbar= nullptr;
-    QPushButton *btnStrengthUp;
-    QPushButton *btnStrengthDown;
-    QLabel *strengthLabel;
+    QWidget* EffectToolbar = nullptr;
+    QPushButton* btnStrengthUp;
+    QPushButton* btnStrengthDown;
+    QLabel* strengthLabel;
     // ============ 马赛克成员变量结束 ============
 
     //添加画笔选择相关
     QColor currentPenColor;    //当前画笔颜色
     int currentPenWidth;       //当前画笔粗细
 
+    //画笔轨迹相关
+    QVector<QPoint> currentPenStroke;
+    QVector<DrawnPenStroke> penStrokes;
+
+
     //画笔工具栏
-    QWidget *penToolbar;
-    QPushButton *btnPenWidthUp;
-    QPushButton *btnPenQisthDown;
+    QWidget* penToolbar;
+    QPushButton* btnPenWidthUp;
+    QPushButton* btnPenWidthDown;
+    QLabel* penWidthLabel;
 
     // 高斯模糊相关
-    QWidget *blurToolbar;
-    QPushButton *btnBlurStrengthDown;
-    QPushButton *btnBlurStrengthUp;
-    QLabel *blurStrengthLabel;
+    QWidget* blurToolbar;
+    QPushButton* btnBlurStrengthDown;
+    QPushButton* btnBlurStrengthUp;
+    QLabel* blurStrengthLabel;
     int currentBlurStrength;
 
     QList<QRect> blurAreas;
@@ -186,7 +220,7 @@ private:
     bool drawingBlur;
     // 屏幕设备像素比
     qreal devicePixelRatio;
-    
+
     // 虚拟桌面原点（用于多屏幕支持）
     QPoint virtualGeometryTopLeft;
 
@@ -195,7 +229,7 @@ private:
     bool showMagnifier;
 
     //文本输入相关
-    QLineEdit *textInput;
+    QLineEdit* textInput;
     bool isTextInputActive;
     QPoint textInputPosition;
 
@@ -203,6 +237,21 @@ private:
     bool isTextMoving;
     DrawnText* movingText;
     QPoint dragStartOffset;
+    QPoint textClickStartPos;   // 文字点击起始位置
+    int textClickIndex;         // 文字点击索引
+    bool potentialTextDrag;     // 是否可能是文字拖拽
+
+    //字体工具栏相关
+    QWidget* fontToolbar;
+    QPushButton* btnFontColor;
+    QPushButton* btnFontSizeUp;
+    QPushButton* btnFontSizeDown;
+    QLineEdit* fontSizeInput;
+    QPushButton* btnFontFamily;
+    QFont currentTextFont;
+    QColor currentTextColor;
+    int currentFontSize;
+    int editingTextIndex;           // 当前正在编辑的文本索引
 
 
     // 绘制相关
@@ -212,14 +261,13 @@ private:
     QVector<DrawnRectangle> rectangles;
     QVector<DrawnEllipse> ellipses;
     QVector<DrawnText> texts;
-    QVector<DrawnPenStroke> penStrokes;
 
 
     // 当前绘制的临时数据
     bool isDrawing;
     QPoint drawStartPoint;
     QPoint drawEndPoint;
-    QVector<QPoint> currentPenStroke;
+
 
 };
 
