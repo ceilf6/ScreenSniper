@@ -1585,7 +1585,12 @@ void ScreenshotWidget::updateEffectToolbarPosition()
 }
 void ScreenshotWidget::cancelCapture()
 {
-    close(); // 示例实现
+    if (mainWindow)
+    {
+        QMetaObject::invokeMethod(mainWindow, "onCaptureArea");
+    }
+    // QApplication::quit()
+    close();
 }
 
 void ScreenshotWidget::updateToolbarPosition()
