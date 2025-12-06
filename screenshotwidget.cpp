@@ -1059,7 +1059,8 @@ void ScreenshotWidget::mousePressEvent(QMouseEvent *event)
                 m_relativeDistance.setHeight(abs(startPoint.y() - endPoint.y()));
             }
 
-            toolbar->hide();
+            if (toolbar)
+                toolbar->hide();
         }
 
         // 处理文本输入框相关逻辑
@@ -1185,7 +1186,8 @@ void ScreenshotWidget::mousePressEvent(QMouseEvent *event)
                     m_relativeDistance.setWidth(abs(startPoint.x() - endPoint.x()));
                     m_relativeDistance.setHeight(abs(startPoint.y() - endPoint.y()));
                 }
-                toolbar->hide();
+                if (toolbar)
+                    toolbar->hide();
             }
             else
             {
