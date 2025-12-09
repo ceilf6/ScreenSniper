@@ -1,0 +1,958 @@
+# 概述
+
+需求：实现一个截屏工具
+
+![截屏2025-12-09 11.49.24.png](attachment:77135be2-108f-49b4-852c-39e2fd5c1b82:截屏2025-12-09_11.49.24.png)
+
+我的目标：确保基本功能的基础上，首先优化工具的性能（因为本项目是以C++开发、如果不以性能为目标的话个人感觉用 Electron（Web+Node.js）更适合），提升工具的跨平台能力、多语言支持，优化代码的可维护性和可拓展性
+
+# 模块化
+
+在拿到任务后，我以功能为区分，考量了各个模块的接口交互后设立了 截屏管理类screenshotwidget ，国际化多语言管理类i18nManager 等类（后面同学们好像直接把功能实现合到了 screenshotwidget ，后续有时间可以将具体的绘画功能等等从 screenshotwidget 文件解耦出来，我感觉一个文件 1000 行已经算比较冗余了）
+
+> 下面就是产品构思、细节实现、代码优化等等
+> 
+
+# 区域截屏
+
+- Commit 9a3353
+
+## 1. 技术选型
+
+- 像 macOS 有 CGDIsplay ，Win 有 BitBit ，都是性能极佳而且能获取到最真实的像素，但是需要写多端支持、不利于维护，不符合轻量化要求
+- 而像用 OpenCV 截屏就需要引入过大依赖，工具过于冗余且性能开销会变大，过度设计了
+- 所以以 Qt 的优点就体现出来了：跨平台、稳定
+
+实现聚焦在 Screenshotwidget 类
+
+首先会截取一次全屏作为背景，保存为 screenPixmap
+
+```jsx
+screenPixmap = currentScreen->grabWindow(0);
+```
+
+然后监听鼠标事件，
+
+## 2. 启动截屏
+
+```jsx
+void ScreenshotWidget::startCapture()
+{
+    // 1. 获取鼠标当前位置所在的屏幕
+    QPoint cursorPos = QCursor::pos();
+    QScreen *currentScreen = nullptr;
+    QList<QScreen *> screens = QGuiApplication::screens();
+    for (QScreen *scr : screens) {
+        if (scr->geometry().contains(cursorPos)) {
+            currentScreen = scr;
+            break;
+        }
+    }
+    
+    // 2. 如果没有找到，使用主屏幕
+    if (!currentScreen) {
+        currentScreen = QGuiApplication::primaryScreen();
+    }
+    
+    if (currentScreen) {
+        // 3. 获取设备像素比，支持高分屏
+        devicePixelRatio = currentScreen->devicePixelRatio();
+        
+        // 4. 获取当前屏幕的几何信息
+        QRect screenGeometry = currentScreen->geometry();
+        
+        // 5. 保存屏幕的原点位置
+        virtualGeometryTopLeft = screenGeometry.topLeft();
+        
+        // 6. 核心：使用Qt的grabWindow(0)获取当前屏幕截图
+        screenPixmap = currentScreen->grabWindow(0);
+        
+        // 7. 设置窗口标志，显示在最上层
+        setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint | Qt::Tool | Qt::BypassWindowManagerHint);
+        
+        // 8. 设置窗口大小和位置为当前屏幕
+        setGeometry(screenGeometry);
+        
+        // 9. 显示窗口
+        show();
+        
+        // 10. 初始化状态
+        selecting = false;
+        selected = false;
+        selectedRect = QRect();
+        showMagnifier = true; // 启用放大镜
+    }
+}
+```
+
+## 3. 实时绘制
+
+在开始到结束即 selecting 标识位为真期间，会通过 **paintEvent** 实现框选区域明亮与周边的暗色区分，并且通过 update 进行重绘，在标识符 selected 为真时展示工具栏
+
+```jsx
+// screenshotwidget.cpp - paintEvent
+
+// 1. 绘制背景截图（底图）
+painter.drawPixmap(windowRect, screenPixmap, sourceRect);
+
+// 2. 绘制半透明遮罩（实现“周边的暗色”）
+painter.fillRect(rect(), QColor(0, 0, 0, 100));
+
+// 3. 如果有选中区域
+// if (selecting || selected) ...
+{
+    // ...计算 currentRect...
+
+    // 4. 在遮罩之上，再次绘制选区部分的// screenshotwidget.cpp - paintEvent
+
+// 1. 绘制背景截图（底图）
+painter.drawPixmap(windowRect, screenPixmap, sourceRect);
+
+// 2. 绘制半透明遮罩（实现“周边的暗色”）
+painter.fillRect(rect(), QColor(0, 0, 0, 100));
+
+// 3. 如果有选中区域
+// if (selecting || selected) ...
+{
+    // ...计算 currentRect...
+
+    // 4. 在遮罩之上，再次绘制选区部分的
+```
+
+# 全屏截屏
+
+- Commit b7fa1c3
+
+直接通过 startCapture 获取全屏背景接着设置标识符 selected = true; 跳过鼠标框选阶段，直接显示工具栏
+
+```jsx
+void ScreenshotWidget::startCaptureFullScreen()
+{
+    // 1. 先启动常规截图，获取屏幕图像
+    startCapture();
+    
+    // 2. 使用 QPointer 安全地捕获 this 指针
+    QPointer<ScreenshotWidget> self(this);
+    
+    // 3. 延迟设置为全屏模式，确保截图已完成
+    QTimer::singleShot(150, this, [self]()
+                       {
+                           // 检查对象是否仍然存在
+                           if (!self) {
+                               return;
+                           }
+                           
+                           // 4. 核心：将选中区域设置为整个窗口
+                           self->selectedRect = self->rect();
+                           self->selected = true;
+                           self->selecting = false;
+                           
+                           // 5. 显示工具栏，进入编辑模式
+                           if (self->toolbar) {
+                               self->toolbar->setParent(self);
+                               self->toolbar->adjustSize();
+                               self->updateToolbarPosition();
+                               self->toolbar->setWindowFlags(Qt::Widget);
+                               self->toolbar->raise();
+                               self->toolbar->show();
+                               self->toolbar->activateWindow();
+                           }
+                           
+                           // 6. 更新界面
+                           self->update(); 
+                       });
+}
+```
+
+# 保存
+
+## 1. 预处理
+
+如果没有选中区域，直接 **剪枝**返回
+
+```jsx
+    if (selectedRect.isEmpty())
+    {
+        return;
+    }
+```
+
+如果有的话，就进行坐标转换处理高 DPI 屏幕的适配
+
+```jsx
+int x = qRound(selectedRect.x() * devicePixelRatio);
+int y = qRound(selectedRect.y() * devicePixelRatio);
+int w = qRound(selectedRect.width() * devicePixelRatio);
+int h = qRound(selectedRect.height() * devicePixelRatio);
+```
+
+## 2. 作用所有绘制
+
+ScreenshotWidget::saveScreenshot() 的 2235 - 2550 行
+
+### pre: 技术选型
+
+虽然我习惯用 Canvas / HTML 图层进行绘制，但是考虑到本工具需求
+
+- 原生像素支持
+- 支持离线，且需要性能、低延迟
+
+于是选择了用 **QPainter** ，原生支持跨平台，同时与 QPixmap 和 QImage 高度整合，方便做 DPR 的适配
+
+## 3. 打开对话框
+
+```jsx
+    // 获取默认保存路径
+    QString defaultPath = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
+    QString defaultFileName = defaultPath + "/screenshot_" +
+                              QDateTime::currentDateTime().toString("yyyyMMdd_hhmmss") + ".png";
+
+    // 打开保存对话框
+    QString fileName = QFileDialog::getSaveFileName(this,
+                                                    getText("save_screenshot", "保存截图"),
+                                                    defaultFileName,
+                                                    getText("file_filter", "PNG图片 (*.png);;JPEG图片 (*.jpg);;所有文件 (*.*)"));
+
+    if (!fileName.isEmpty())
+    {
+        // 根据文件扩展名确定保存格式
+        QString suffix = QFileInfo(fileName).suffix().toLower();
+        if (suffix != "png" && suffix != "jpg" && suffix != "jpeg")
+        {
+            fileName += ".png"; // 默认使用 PNG
+            suffix = "png";
+        }
+
+        // 保存图片
+        if (suffix == "png")
+        {
+            croppedPixmap.save(fileName, "PNG", 100);
+        }
+        else if (suffix == "jpg" || suffix == "jpeg")
+        {
+            croppedPixmap.save(fileName, "JPEG", 95);
+        }
+        emit screenshotTaken(); // 发射截图完成信号
+        hide();                 // 隐藏当前窗口
+        QApplication::quit();   // 退出整个应用程序
+        // 如果用户取消保存，不做任何操作，保持当前状态（工具栏仍然可见）
+    }
+```
+
+其中 [croppedPixmap.save](http://croppedPixmap.save) 就是 Qt 的 QPixmap 类中用于保存的方法，是自动支持跨平台的
+
+最后btnSave 信号槽连接到 saveScreensho
+
+# 复制
+
+本质上保存和复制前面的代码都是一样的，都需要预处理和应用更改，只不过最后要调用的API不同，于是我想能不能优化代码的复用性和可拓展性，于是我想到了
+
+## ⭐工厂模式
+
+将差异点即最后要调用的API放到一个回调函数中作为参数传入统一的函数 processScreenshot 
+
+```jsx
+// 通用截图处理函数，使用回调函数处理最终输出
+void ScreenshotWidget::processScreenshot(std::function<void(QPixmap &)> outputHandler)
+```
+
+```jsx
+    // 调用回调函数处理最终输出（保存或复制）
+    outputHandler(croppedPixmap);
+
+    // 通用的收尾工作
+    emit screenshotTaken();
+    hide();
+    if (mainWindow)
+    {
+        mainWindow->show();
+    }
+    close();
+```
+
+```jsx
+void ScreenshotWidget::copyToClipboard()
+{
+    processScreenshot([](QPixmap &pixmap)
+                      {
+        // 复制到剪贴板
+        QClipboard *clipboard = QGuiApplication::clipboard();
+        clipboard->setPixmap(pixmap); });
+}
+```
+
+最后 btnCopy 信号槽连接到 copyToClipboard 函数
+
+# 有效空间的跨平台支持
+
+## 挤压
+
+- **Commit 7e8c96a**
+
+发现截屏窗口在 macOS 下会被系统菜单栏挤压，导致底部内容被裁剪
+
+因为 screen->geometry() 返回的是整个屏幕区域，但 **macOS 的菜单栏会占用一部分区域**，默认窗口管理器会自动缩放窗口尺寸，导致有效绘制区域变小。
+
+解决方案主要聚焦在绕过系统窗口管理策略，手动控制了绘制区域，避免被系统UI挤压
+
+具体体现在两个修改上
+
+1. **加上 Qt::BypassWindowManagerHint**，让窗口不受 macOS 窗口管理器干涉，能够覆盖到完整屏幕。
+2. **不使用 WindowFullScreen 模式( showFullScreen() )**，改成普通 show()，避免系统强制缩放窗口尺寸。
+
+- Qt::BypassWindowManagerHint 在 macOS 中会调用 ObjC 层窗口属性，在 Windows 会调用 Win32 API ，Linux 中会调用 X11 / Wayland Flags
+
+## 结果导致拓展坞遮挡工具栏
+
+- **Commit a8b4e31**
+
+为实现工具栏自适应避开拓展坞，原先我的思路是拿到拓展坞高度属性后去计算，但是还不如直接调 Qt 的拿到可用空间的 API 来的快（Qt的API例如 **availableGeometry**基本都支持跨平台）
+
+```jsx
+QScreen *screen = QGuiApplication::screenAt(geometry().center());
+QRect availableGeometry = screen->availableGeometry();
+```
+
+后再做一层基点校验处理
+
+```jsx
+// 窗口左上角的全局坐标
+QPoint windowTopLeft = geometry().topLeft();
+
+// 计算安全区域的底部边界相对于窗口内部的 Y 坐标
+int availableBottomY = availableGeometry.bottom() - windowTopLeft.y();
+```
+
+然后用于对于面积大、难以展示工具栏的极端情况进行特判处理
+
+```jsx
+    // 如果是全屏截图或接近全屏，将工具栏放在屏幕底部中央偏上
+    if (selectedRect.width() >= width() - 10 && selectedRect.height() >= height() - 10)
+    {
+        x = (width() - toolbarWidth) / 2;
+        // 使用 availableBottomY 确保不被 Dock 遮挡
+        y = availableBottomY - toolbarHeight - 20; 
+    }
+    else
+    {
+        // 尝试将工具栏放在选中区域下方
+        x = selectedRect.x() + (selectedRect.width() - toolbarWidth) / 2;
+        y = selectedRect.bottom() + 10;
+
+        // 如果超出可用区域底部，则放在选中区域上方
+        if (y + toolbarHeight > availableBottomY)
+        {
+            y = selectedRect.top() - toolbarHeight - 10;
+        }
+
+        // 确保不超出屏幕左右边界
+        if (x < 10)
+            x = 10;
+        if (x + toolbarWidth > width() - 10)
+        {
+            x = width() - toolbarWidth - 10;
+        }
+    }
+```
+
+后面对功能类似的做了层级统一，产生了子工具栏的概念
+
+# 子工具栏
+
+## 1. 遮挡问题
+
+需要考虑到不同的子工具栏的规格是不一样的，所以直接在可选区域里面写死肯定是不正确的
+
+所以首先考虑到代码可拓展性，通过 globalPos 实现做屏幕的坐标系转换，进行统一规范 
+
+```jsx
+		int maxY = availableGeometry.bottom() - globalPos.y();
+    int maxX = availableGeometry.right() - globalPos.x();
+    int minX = availableGeometry.left() - globalPos.x();
+    int minY = availableGeometry.top() - globalPos.y();
+```
+
+然后通过不断**碰断检测**（例如 if (y + toolbarHeight > availableBottomY) ）后如果不符合就进行**挪动更新**
+
+## 2. 子工具栏的线程问题
+
+- commit 0ce7814
+
+原先是各个子工具栏的打开和关闭的**逻辑分散**在各自的按钮点击事件中，会导致例如打开一个新子工具栏后忘记关闭另一个子工具栏的情况，考虑到各个子工具栏的排他性，我想到了 
+
+### **⭐JS单线程管理DOM树防止UI操作混乱**
+
+的思想 ，类似地实现了**子工具栏调度函数 toggleSubToolbar** 在其中统一了逻辑管理，优化了代码的稳定性和可拓展性，提高代码可读性
+
+```jsx
+void ScreenshotWidget::toggleSubToolbar(QWidget* targetToolbar)
+{
+    // 1. 隐藏所有其他子工具栏
+    if (penToolbar && penToolbar != targetToolbar) penToolbar->hide();
+    if (shapesToolbar && shapesToolbar != targetToolbar) shapesToolbar->hide();
+    if (fontToolbar && fontToolbar != targetToolbar) fontToolbar->hide();
+    if (EffectToolbar && EffectToolbar != targetToolbar) EffectToolbar->hide();
+
+    // 2. 切换目标工具栏状态
+    if (targetToolbar) {
+        if (targetToolbar->isVisible()) {
+            targetToolbar->hide();
+        } else {
+            // 更新位置并显示
+            if (targetToolbar == penToolbar) updatePenToolbarPosition();
+            else if (targetToolbar == shapesToolbar) updateShapesToolbarPosition();
+            else if (targetToolbar == fontToolbar) updateFontToolbarPosition();
+            else if (targetToolbar == EffectToolbar) updateEffectToolbarPosition();
+            
+            targetToolbar->show();
+            targetToolbar->raise();
+        }
+    }
+}
+```
+
+## 3. SVG支持
+
+- **Commit da76be8**
+
+由于原先是直接文字展示、观感不是很好，于是为了优化UI效果以及高精度UI支持，选择用 SVG 矢量图进行替换
+
+去 https://iconify.design/ 中拉下来 svg 代码
+
+然后在 Qt资源系统 resources.qrc 中导入，之后它们会被编译成 C++ 代码即可在代码中通过 相对路径 访问（类似于 webpack 的 @ ），通过 QIcon 类可以直接加载和使用 SVG
+
+如
+
+```jsx
+btnText->setIcon(QIcon(":/icons/icons/text.svg"));
+```
+
+# 放大镜
+
+- **Commit 7ffb63d**
+
+## 1. 技术选型
+
+- 首先我去搜集了信息，Qt没有内置的放大镜API，windows上有 Magnification API ，macOS上有 Accessibility ，但是不符合跨平台的目标
+- 用 QGraphicsView 的变换能力模拟实现放大镜的话，实现复杂、性能一般
+- 不如手动维护：裁剪像素后用 drawPixmap 进行放大，虽然要处理 DPR 和边界判断，但是完全可控、跨平台且开销小
+
+## 2. 绘制思路
+
+直接通过放大像素实现，通过 dPR 实现 逻辑像素到放大后的物理像素 的转换，然后结合 Qt 暴露的 **drawPixmap** 进行绘制
+
+控制过程：
+
+1. 在 startCapture() 函数中刚开始截图就启动：设置 showManifier = true
+2. 在 mouseMoveEvent() 函数中设置随着鼠标移动事件实时更新放大镜
+
+同时和工具栏一样做了**碰撞检测**防止超出边界
+
+## 3. 实现
+
+a. 相关变量
+
+```jsx
+// 控制放大镜是否显示
+bool showMagnifier;
+
+// 当前鼠标位置，用于确定放大镜跟随位置
+QPoint currentMousePos;
+
+// 设备像素比，用于处理高分屏
+double devicePixelRatio;
+
+// 原始截图，用于获取放大区域
+QPixmap screenPixmap;
+```
+
+b. 核心绘制
+
+```jsx
+// 绘制放大镜
+if (showMagnifier && !selected)
+{
+    // 1. 设置放大镜参数
+    int magnifierSize = 120; // 放大镜显示大小（像素）
+    int magnifierScale = 4;  // 放大倍数（4倍放大）
+
+    // 2. 计算放大镜位置（初始在鼠标右下方）
+    int magnifierX = currentMousePos.x() + 20;
+    int magnifierY = currentMousePos.y() + 20;
+
+    // 3. 确保放大镜不超出屏幕边界
+    if (magnifierX + magnifierSize > width())
+        magnifierX = currentMousePos.x() - magnifierSize - 20;
+    if (magnifierY + magnifierSize > height())
+        magnifierY = currentMousePos.y() - magnifierSize - 20;
+
+    // 4. 计算需要放大的局部区域
+    // 源区域大小 = 放大镜大小 / 放大倍数
+    int sourceSize = magnifierSize / magnifierScale;
+    
+    // 逻辑坐标下的源区域（鼠标中心）
+    QRect logicalSourceRect(
+        currentMousePos.x() - sourceSize / 2,
+        currentMousePos.y() - sourceSize / 2,
+        sourceSize,
+        sourceSize);
+
+    // 5. 确保源区域在窗口范围内
+    logicalSourceRect = logicalSourceRect.intersected(QRect(0, 0, width(), height()));
+
+    // 6. 转换为物理像素坐标（处理高分屏）
+    QPoint windowPos = geometry().topLeft();
+    QPoint offset = windowPos - virtualGeometryTopLeft;
+
+    QRect physicalSourceRect(
+        (logicalSourceRect.x() + offset.x()) * devicePixelRatio,
+        (logicalSourceRect.y() + offset.y()) * devicePixelRatio,
+        logicalSourceRect.width() * devicePixelRatio,
+        logicalSourceRect.height() * devicePixelRatio);
+
+    // 7. 如果源区域有效，绘制放大镜
+    if (!physicalSourceRect.isEmpty())
+    {
+        // 7.1 绘制放大镜背景（白色背景，蓝色边框）
+        painter.setPen(QPen(QColor(0, 150, 255), 2));
+        painter.setBrush(Qt::white);
+        painter.drawRect(magnifierX, magnifierY, magnifierSize, magnifierSize);
+
+        // 7.2 绘制放大的图像
+        QRect targetRect(magnifierX, magnifierY, magnifierSize, magnifierSize);
+        painter.drawPixmap(targetRect, screenPixmap, physicalSourceRect);
+
+        // 7.3 绘制十字准星（红色十字线，便于精确定位）
+        painter.setPen(QPen(Qt::red, 1));
+        int centerX = magnifierX + magnifierSize / 2;
+        int centerY = magnifierY + magnifierSize / 2;
+        painter.drawLine(centerX - 10, centerY, centerX + 10, centerY);
+        painter.drawLine(centerX, centerY - 10, centerX, centerY + 10);
+    }
+}
+```
+
+# 绘制箭头
+
+- **Commit 9c90479**
+
+## 1. 首先构建了一个结构体存储相关信息
+
+基于 **OOP** 的思想，使用结构体封装箭头属性，便于扩展和维护
+
+```jsx
+struct DrawnArrow {
+    QPoint start;    
+    QPoint end;      
+    QColor color;    
+    int width;       
+};
+```
+
+然后使用 QVector<DrawnArrow> arrows 向量来存储所有已绘制的箭头
+
+## 2. 绘制管理
+
+当 currentDrawMode 当前绘制模式为 Arrow 的时候，监听
+
+1. 鼠标按下：
+    - isDrawing = true
+    - drawStartPoint = event → pos()
+2. 鼠标移动：
+    - drawEndPoint = event->pos() 更新终点的同时触发重绘实时显示效果
+3. 鼠标释放：
+    - isDrawing = false
+    - 同时创建 DrawnArrow 对象保存结构体需要的
+        - 起点
+        - 终点
+        - 颜色
+        - 宽度
+        
+        后加入到之前说的 arrows 向量中
+        
+
+## 3. 偏移与放大的问题
+
+原因在于高分屏（Retina显示屏）下的坐标系处理冲突，导致了“**双重缩放**”
+
+1. 当时屏幕 DPR 为 2 ，1个逻辑单位 对应屏幕的 2个物理像素，screenPixmap 存储的是屏幕的原始物理像素数据
+2. 双重缩放，为了高清原图上绘制在代码中手动将坐标乘以 DPR，计算物理像素坐标，当用 screenPixmap 裁剪得到 croppedPixmap 时，保留了 DPR = 2 的属性，于是当用 QPainter 在其上面绘制时 ，**Qt会认为这是一个高分屏图片导致再次乘2**
+
+首先，我误认为是坐标精度丢失导致的，尝试提升了绘制函数的参数从整数的精度提高到浮点数，但是没有效果
+
+最后，我控制 **所有绘制走物理像素，由自己控制 DPR** ，虽然需要额外处理，但是控制精确，例如在创建croppedPixmap时手动调用 **croppedPixmap.setDevicePixelRation(1.0)** 告诉Qt不要将这张图当作普通像素图处理，那么QPaiter就会直接用我们计算好的物理坐标，解决了偏移和放大的问题
+
+# OCR 文字识别
+
+## 1. 原生API（兜底处理）
+
+- **Commit 06cd33a**
+
+出于精度、免安装等考虑，我先尝试用macOS 原生的 **Vision Framework 支持OCR**，串联链路
+
+在 [macocr](http://macocr.mm) 中进行 Vision API 的封装
+
+```jsx
+#include <Vision/Vision.h>
+
+QString MacOCR::recognizeText(const QPixmap& pixmap) {
+    // 1. QPixmap 转 CGImage
+    QImage image = pixmap.toImage();
+    QByteArray byteArray;
+    QBuffer buffer(&byteArray);
+    image.save(&buffer, "PNG");
+    
+    NSData* nsData = [NSData dataWithBytes:byteArray.constData() length:byteArray.size()];
+    NSImage* nsImage = [[NSImage alloc] initWithData:nsData];
+    CGImageRef cgImage = [nsImage CGImageForProposedRect:nil context:nil hints:nil];
+    
+    // 2. 创建并配置 Vision 文本识别请求
+    VNRecognizeTextRequest *request = [[VNRecognizeTextRequest alloc] initWithCompletionHandler:^(VNRequest *request, NSError *error) {
+        // 处理识别结果
+        NSMutableString *fullText = [NSMutableString string];
+        for (VNRecognizedTextObservation *observation in request.results) {
+            NSArray<VNRecognizedText *> *topCandidates = [observation topCandidates:1];
+            if (topCandidates.count > 0) {
+                [fullText appendString:topCandidates[0].string];
+                [fullText appendString:@"\n"];
+            }
+        }
+        resultText = QString::fromNSString(fullText).trimmed();
+    }];
+    
+    // 配置识别参数
+    request.recognitionLevel = VNRequestTextRecognitionLevelAccurate;
+    request.usesLanguageCorrection = YES;
+    request.recognitionLanguages = @[@"zh-Hans", @"en-US"];
+    
+    // 3. 执行识别请求
+    VNImageRequestHandler *handler = [[VNImageRequestHandler alloc] initWithCGImage:cgImage options:@{}];
+    NSError *error = nil;
+    [handler performRequests:@[request] error:&error];
+    
+    return resultText;
+}
+```
+
+然后在 screenshotwidget 中完善调用链
+
+```jsx
+		// 获取当前截图（包含绘制的内容）
+    QPixmap capture = this->grab(selectedRect);
+    // 调用 OCR
+    QString text = MacOCR::recognizeText(capture);
+```
+
+## 2. ⭐渐进增强：**Tesseract**
+
+- **Commit a59921f**
+
+### pre: 技术选型
+
+为了支持，我搜集了一些常见的库，例如 Tesseract 、 EasyOCR 、PaddleOCR 等等，其中 PaddleOCR 虽然精度可以但是模型体积大，不适合打包进轻量工具，EasyOCR的话是用 python ，虽然我之前尝试过一些 py 和 C++ 串联的项目 https://github.com/ceilf6/SmartFruits 、有经验，但是考虑到稳定性、工具的轻量化，我最终选择了 Tesseract 库
+
+在 OcrManager 类中判断，如果定义了 USE_TESSERACT 则使用 Tesseract （否则的话在 mac 上使用 Vision 、同时提示可以通过下载库进行增强，其他平台的话弹窗提示需要下载依赖库）
+
+同时在调用前会通过 Leptonica 进行图像预处理，提升OCR的识别效果
+
+```jsx
+QString OcrManager::doRecognize(const QPixmap &pixmap) {
+    // 确保引擎已初始化
+    if (!initializeOcr()) {
+        return "Error: Could not initialize OCR engine.";
+    }
+    
+    // 图像预处理
+    QImage image = pixmap.toImage();
+    image = preprocessImage(image);
+    image = image.convertToFormat(QImage::Format_RGB888);
+    
+    // 设置图像数据
+    m_tesseractApi->SetImage(image.bits(), image.width(), image.height(), 3, image.bytesPerLine());
+    
+    // 执行OCR识别
+    char *outText = m_tesseractApi->GetUTF8Text();
+    QString result = QString::fromUtf8(outText);
+    
+    // 清理资源
+    delete[] outText;
+    
+    return result.trimmed();
+}
+```
+
+注：上面这个是之前的同步写法，现在是通过 Qt Concurrent 实现了 recognizeAsync 性能优化的异步模式，避免了UI的冻结
+
+## 3. 性能优化
+
+- **Commit a19b469**
+
+### **a. ⭐单例模式**
+
+**删除拷贝函数和赋值运算符，构造私有化，通过静态getter获取唯一实例**
+
+首先想法就是避免每次调用都重新初始化Tesseract引擎
+
+通过实现 OcrManager 类的单例化，引擎只会初始化一次，且单例是线程安全的，多线程并发的时候并不会紊乱（C++11之后确保了内部的变量初始化一次）
+
+### b. ⭐记忆化缓存
+
+使用图像哈希值作为键，防止重复识别图像
+
+```jsx
+    if (ocrInstance->m_resultCache.contains(cacheKey))
+    {
+        return *ocrInstance->m_resultCache[cacheKey];
+    }
+```
+
+### c. ⭐异步：并行运行后执行回调
+
+由于OCR是无UI的计算任务，不用通过QThread，可以直接使用 **Qt Concurrent** 进行异步识别
+
+```jsx
+    QtConcurrent::run([pixmap, callback]()
+                      {
+        QString result = recognize(pixmap);
+        callback(result); });
+```
+
+## 4. 优化交互界面
+
+- **Commit a705c69**
+
+原先是通过 QMessageBox::information 系统自带的对话框进行展示识别的文本结果、很窄很长，很多文本的时候对用户非常的不友好
+
+于是为了优化工具交互、用户体验和结果展示，创建了 ocrresultdialog 
+
+### a. 文本优化
+
+- 通过 QTextEdit 控件显示结果，支持多行文本和滚动查看
+- 设置 12pt 提高可读性
+- 用 WidgetWidth 支持文本换行、响应式适应不同屏幕的尺寸
+
+### b. 样式优化
+
+- #f9f9f9 浅色背景
+- 圆角
+
+### c. 交互优化
+
+- 支持全选
+- 一键全选和一键复制
+- 同时按钮都有 hover , pressed 状态变化提示
+
+# 国际化支持
+
+## 1. 使用 ⭐MCP 工具进行死文本替换
+
+- commit **746f7ef**
+
+通过 i18n MCP 进行了死文本的国际化文本替换
+
+```jsx
+{
+  "mcpServers": {
+    "block-translate-tool": {
+      "command": "pnpm",
+      "args": ["dlx", "@block/translate-tool@latest", "-tools=block-translate-tool"]
+    }
+  }
+}
+```
+
+## 2. 翻译文案通过 ⭐npm 包管理
+
+- commit 9f2e577
+
+后续优化：对于生产环境（需要做分流判断）直接引用包即可，不需要脚本复制，CI的时候仍然复制
+
+从而对 简体中文、英文、繁体中文 的翻译文件进行管理，后续需要对新语言支持只需要添加相应文件即可
+
+## 3. 翻译实现
+
+I18nManager::instance()->getText(key, **defaultValue**)
+
+### 兜底处理
+
+getText 方法的后一个参数就是默认值，当依赖包由于某些原因缺失时仍然不会影响工具使用
+
+## 4. ⭐事件发射器动态更新机制
+
+- **Commit 400af94**
+1. 在 switchLanguage 中发射变更信号
+
+```jsx
+    // 发射语言变化信号，通知所有连接的组件
+    emit languageChanged(language);
+```
+
+1. 然后需要在 screenshotWidget 中添加槽函数响应语言变化，进行回调
+
+```jsx
+void onLanguageChanged(); // 响应语言变化的回调函数列表
+```
+
+```jsx
+void ScreenshotWidget::setMainWindow(QWidget *mainWin)
+{
+    mainWindow = mainWin;
+    // 连接信号槽：当 mainWindow 发射 languageChanged 信号时，
+    // 自动调用 this 的 onLanguageChanged 槽函数
+    connect(mainWindow, SIGNAL(languageChanged(QString)),
+            this, SLOT(onLanguageChanged()));
+    updateTooltips();
+}
+
+void ScreenshotWidget::onLanguageChanged()
+{
+    updateTooltips();  // 更新所有工具提示
+    updateUI();        // 主页面的重绘
+    update();          // 请求重绘
+}
+```
+
+## 5. 解耦合
+
+- **Commit cc89a63**
+
+依赖于 mainWindow
+
+翻译数据都存储在 mainWindow 中，ScreenshotWidget 无法知道这个类的存在。通过**成员变量建立连接 - 关联模式，耦合度高！**
+
+后面通过 **单例模式（删除拷贝函数和赋值运算符，构造私有化，通过静态getter获取唯一实例）** 管理独立的 I18nManager 类，提高了代码的可维护性和可拓展性
+
+- 小bug：由于load后没有save导致的每次重启没有记忆化配置而是使用了默认语言
+- **Commit 4d9f4af**
+
+这样每次启动都会从单例访问器中拿到 I18nManager::instance()->currentLanguage(); 语言配置后确保全局的统一且变更后会保存到 QSettings 
+
+# AI支持
+
+## 1. 技术选型
+
+### a. 直接接入 SDK
+
+从 https://platform.openai.com/docs/quickstart 首先看到可以通过接入 官方的SDK，然后直接调用其方法，不用去写底层的请求，但是我好像只找到 Py / JS 的SDK，没有找到契合我们项目的，于是出于高性能以及**实战学习**的角度出发选择了第二种方案（后面我好像看到开源社区有 Unofficial 是 C++ 的 SDK，后面有时间可以优化）
+
+### b. 通过 AIConfigManager 中接入多种模型进行管理
+
+- **Commit 88c4097**
+
+在 **Commit 0bae492** 键至同学的基础上，根据配置文件的服务类型动态选择调用阿里云还是OpenAI，统一了图片处理流程支持base64编码的需求
+
+同时支持代码的可拓展性、强健性，后续需要添加模型只需要在配置文件中添加模版后在 aimanager 中添加分流并具体处理对应模型需要的 JSON 文件格式
+
+## 2. 按照请求体模版构建JSON对象并POST请求
+
+```jsx
+        if (serviceType == AIConfigManager::OpenAI)
+        {
+            // OpenAI API 调用
+            QString endpoint = AIConfigManager::instance().getEndpoint();
+            QUrl url(endpoint);
+            QNetworkRequest request(url);
+
+            // 设置 Header
+            request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+            request.setRawHeader("Authorization", ("Bearer " + apiKey).toUtf8());
+
+            /*
+curl https://api.openai.com/v1/responses \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $OPENAI_API_KEY" \
+  -d '{
+    "model": "gpt-4.1",
+    "input": [
+      {
+        "role": "user",
+        "content": [
+          {"type": "input_text", "text": "what is in this image?"},
+          {
+            "type": "input_image",
+            "image_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Gfp-wisconsin-madison-the-nature-boardwalk.jpg/2560px-Gfp-wisconsin-madison-the-nature-boardwalk.jpg"
+          }
+        ]
+      }
+    ]
+  }'
+
+            */
+
+        // image_url 对象
+        // QJsonObject imgUrlObj;
+        // imgUrlObj["url"] = "data:image/png;base64," + base64Image;
+
+        // content 数组
+        QJsonArray contentArray;
+
+        // text
+        QJsonObject textObj;
+        textObj["type"] = "input_text";
+        textObj["text"] = "请描述这张图片的内容";
+        contentArray.append(textObj);
+
+        // image
+        QJsonObject imgObj;
+        imgObj["type"] = "input_image";
+        imgObj["image_url"] = "data:image/png;base64," + base64Image;
+        // 注意新版是直接传URL！！
+        contentArray.append(imgObj);
+
+        // user message
+        QJsonObject messageObj;
+        messageObj["role"] = "user";
+        messageObj["content"] = contentArray;
+
+        QJsonArray messagesArray;
+        messagesArray.append(messageObj);
+
+        // final body
+        QJsonObject jsonBody;
+        jsonBody["model"] = AIConfigManager::instance().getModelName();
+        jsonBody["input"] = messagesArray; // 注意这里是 input !
+        // jsonBody["max_tokens"] = 800; // 官方文档里面没有最大tokens数的字段
+
+        // 创建一个用于显示的简化版本（截断 base64）
+        QString base64Preview = base64Image.left(100) + "...[省略]..." + base64Image.right(50);
+
+        QJsonObject imgObjPreview;
+        imgObjPreview["type"] = "input_image";
+        imgObjPreview["image_url"] = "data:image/png;base64," + base64Preview;
+
+        QJsonArray contentArrayPreview;
+        contentArrayPreview.append(textObj);
+        contentArrayPreview.append(imgObjPreview);
+
+        QJsonObject messageObjPreview;
+        messageObjPreview["role"] = "user";
+        messageObjPreview["content"] = contentArrayPreview;
+
+        QJsonArray messagesArrayPreview;
+        messagesArrayPreview.append(messageObjPreview);
+
+        QJsonObject jsonBodyPreview;
+        jsonBodyPreview["model"] = AIConfigManager::instance().getModelName();
+        jsonBodyPreview["input"] = messagesArrayPreview;
+```
+
+## 3. 配置
+
+ApiKey: 去 https://platform.openai.com/api-keys 拿到你专属账号的接口key
+
+Endpoint: 标准接口的访问地址，可以去 https://platform.openai.com/docs/guides/images-vision?api-mode=responses 可以看到，POST https://api.openai.com/v1/responses 所以我的 Endpoint 就填了这个端口
+
+然后你可以根据你账号支持的模型 https://platform.openai.com/docs/models 选择你想要的模型填入到 Model
+
+## 4. 我认为的后续可以优化的地方
+
+1. 对话框、图片修改 https://platform.openai.com/docs/api-reference/images/createEdit?utm_source=chatgpt.com
+2. 通过监听UI鼠标事件自动切换模型
+3. Unofficial
+
+# 附录
+
+## 名词解释
+
+- DPI: **Dots Per Inch（每英寸像素点数量）** 的缩写，用来描述屏幕的 **像素密度。**即逻辑像素到物理像素的比例
+- DPR: **device Pixel Ratio（设备像素比）。**和 DPI 对应，代表 物理像素到逻辑像素 的比例
