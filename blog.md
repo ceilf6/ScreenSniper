@@ -31,14 +31,14 @@
 screenPixmap = currentScreen->grabWindow(0);
 ```
 
-然后监听鼠标事件，
+然后监听鼠标事件，实时更新选区的绘制
 
 ## 2. 启动截屏
 
 ```jsx
 void ScreenshotWidget::startCapture()
 {
-    // 1. 获取鼠标当前位置所在的屏幕
+    // 1. 获取鼠标当前位置所在的屏幕（通过包含鼠标判断）
     QPoint cursorPos = QCursor::pos();
     QScreen *currentScreen = nullptr;
     QList<QScreen *> screens = QGuiApplication::screens();
@@ -123,7 +123,7 @@ painter.fillRect(rect(), QColor(0, 0, 0, 100));
 
 - Commit b7fa1c3
 
-直接通过 startCapture 获取全屏背景接着设置标识符 selected = true; 跳过鼠标框选阶段，直接显示工具栏
+复用区域截图的 `startCapture()`，通过直接设置标志 `selected = true` 跳过鼠标框选阶段
 
 ```jsx
 void ScreenshotWidget::startCaptureFullScreen()
@@ -131,7 +131,7 @@ void ScreenshotWidget::startCaptureFullScreen()
     // 1. 先启动常规截图，获取屏幕图像
     startCapture();
     
-    // 2. 使用 QPointer 安全地捕获 this 指针
+    // 2. 使用 QPointer 防止 lambda 中悬空指针（类似智能指针）
     QPointer<ScreenshotWidget> self(this);
     
     // 3. 延迟设置为全屏模式，确保截图已完成
@@ -168,7 +168,7 @@ void ScreenshotWidget::startCaptureFullScreen()
 
 ## 1. 预处理
 
-如果没有选中区域，直接 **剪枝**返回
+如果没有选中区域，直接 **提前剪枝** 返回，避免无效的性能开销
 
 ```jsx
     if (selectedRect.isEmpty())
@@ -177,7 +177,9 @@ void ScreenshotWidget::startCaptureFullScreen()
     }
 ```
 
-如果有的话，就进行坐标转换处理高 DPI 屏幕的适配
+如果有的话，就进行坐标转换，实现高 DPI 屏幕的适配
+
+其中是使用了 qRound 四舍五入，避免 qFloor/qCeil 导致的像素偏差（qCeil可能会导致越界的、qFloor边缘处理不够丝滑）
 
 ```jsx
 int x = qRound(selectedRect.x() * devicePixelRatio);
@@ -192,12 +194,12 @@ ScreenshotWidget::saveScreenshot() 的 2235 - 2550 行
 
 ### pre: 技术选型
 
-虽然我习惯用 Canvas / HTML 图层进行绘制，但是考虑到本工具需求
+虽然我习惯用 Canvas/OffscreenCanvas 进行离屏图层渲染，但是考虑到本工具需求
 
 - 原生像素支持
 - 支持离线，且需要性能、低延迟
 
-于是选择了用 **QPainter** ，原生支持跨平台，同时与 QPixmap 和 QImage 高度整合，方便做 DPR 的适配
+于是选择了用 **QPainter** ，原生支持跨平台（底层调用 CoreGraphics/GDI+/X11），同时与 QPixmap 和 QImage 高度整合，方便做 DPR 的适配
 
 ## 3. 打开对话框
 
@@ -245,11 +247,13 @@ ScreenshotWidget::saveScreenshot() 的 2235 - 2550 行
 
 # 复制
 
-本质上保存和复制前面的代码都是一样的，都需要预处理和应用更改，只不过最后要调用的API不同，于是我想能不能优化代码的复用性和可拓展性，于是我想到了
+本质上保存和复制前面的代码都是一样的，都需要预处理和应用更改
 
-## ⭐工厂模式
+只不过最后要调用的API不同，于是我想能不能优化代码的复用性和可拓展性，参考 **依赖注入** 思想（例如React父组件单向数据流传输许多类子组件中），想到了
 
-将差异点即最后要调用的API放到一个回调函数中作为参数传入统一的函数 processScreenshot 
+## **⭐工厂模式-高阶函数**
+
+将差异点即最后要调用的API放到一个回调函数中作为参数传入统一的函数 processScreenshot （像 React 的 Render Props ）
 
 ```jsx
 // 通用截图处理函数，使用回调函数处理最终输出
@@ -285,28 +289,42 @@ void ScreenshotWidget::copyToClipboard()
 
 # 有效空间的跨平台支持
 
-## 挤压
+## 问题1: 菜单栏挤压窗口
 
 - **Commit 7e8c96a**
 
-发现截屏窗口在 macOS 下会被系统菜单栏挤压，导致底部内容被裁剪
+### 问题现象
 
-因为 screen->geometry() 返回的是整个屏幕区域，但 **macOS 的菜单栏会占用一部分区域**，默认窗口管理器会自动缩放窗口尺寸，导致有效绘制区域变小。
+截屏窗口在 macOS 下会被系统菜单栏挤压，导致底部内容被裁剪
 
-解决方案主要聚焦在绕过系统窗口管理策略，手动控制了绘制区域，避免被系统UI挤压
+### 根因分析
 
-具体体现在两个修改上
+- `screen->geometry()` 返回整个屏幕区域（包含菜单栏）
+- macOS 窗口管理器默认会自动缩放窗口，避开菜单栏（22px）和 Dock
+- 导致实际绘制区域 ≠ 预期的全屏区域
+
+### 解决方案
+
+绕过系统窗口管理策略，手动控制了绘制区域，避免被系统UI挤压
 
 1. **加上 Qt::BypassWindowManagerHint**，让窗口不受 macOS 窗口管理器干涉，能够覆盖到完整屏幕。
-2. **不使用 WindowFullScreen 模式( showFullScreen() )**，改成普通 show()，避免系统强制缩放窗口尺寸。
+2. **不使用 WindowFullScreen 模式( showFullScreen() )**，改成普通 show()，避免 Qt 触发系统全屏模式，导致被强制调整尺寸
 
-- Qt::BypassWindowManagerHint 在 macOS 中会调用 ObjC 层窗口属性，在 Windows 会调用 Win32 API ，Linux 中会调用 X11 / Wayland Flags
+- Qt::BypassWindowManagerHint 在 macOS 中会调用 ObjC 层窗口属性，在 Windows 会调用 Win32 API ，Linux 中会调用 X11 / Wayland Flags，所以是原生支持跨平台的
 
-## 结果导致拓展坞遮挡工具栏
+## **问题2：Dock 遮挡工具栏**
 
 - **Commit a8b4e31**
 
-为实现工具栏自适应避开拓展坞，原先我的思路是拿到拓展坞高度属性后去计算，但是还不如直接调 Qt 的拿到可用空间的 API 来的快（Qt的API例如 **availableGeometry**基本都支持跨平台）
+### 问题分析
+
+绕过窗口管理器后，工具栏可能被 Dock 遮挡
+
+### 技术选型
+
+为实现工具栏自适应避开拓展坞，原先我的思路是拿到拓展坞高度属性后去计算，这样的话就需要通过系统 API 去查询 Dock 高度，复杂而且跨平台维护性价比低
+
+不如直接调 Qt 的拿到可用空间的 API 来的快，即 **availableGeometry** 
 
 ```jsx
 QScreen *screen = QGuiApplication::screenAt(geometry().center());
@@ -374,15 +392,17 @@ int availableBottomY = availableGeometry.bottom() - windowTopLeft.y();
 
 然后通过不断**碰断检测**（例如 if (y + toolbarHeight > availableBottomY) ）后如果不符合就进行**挪动更新**
 
-## 2. 子工具栏的线程问题
+## 2. 子工具栏状态管理问题
 
 - commit 0ce7814
 
-原先是各个子工具栏的打开和关闭的**逻辑分散**在各自的按钮点击事件中，会导致例如打开一个新子工具栏后忘记关闭另一个子工具栏的情况，考虑到各个子工具栏的排他性，我想到了 
+原先是各个子工具栏的打开和关闭的**逻辑分散**在各自的按钮点击事件中，代码可维护性极低，考虑到各个子工具栏的排他性，我想到了 
 
 ### **⭐JS单线程管理DOM树防止UI操作混乱**
 
-的思想 ，类似地实现了**子工具栏调度函数 toggleSubToolbar** 在其中统一了逻辑管理，优化了代码的稳定性和可拓展性，提高代码可读性
+### **⭐浏览器的事件循环机制**
+
+的 **单一调度器模式** 思想 ，类似地实现了**子工具栏调度函数 toggleSubToolbar** 在其中统一了逻辑管理，优化了代码的稳定性和可拓展性，实现了中心化调度
 
 ```jsx
 void ScreenshotWidget::toggleSubToolbar(QWidget* targetToolbar)
@@ -411,21 +431,27 @@ void ScreenshotWidget::toggleSubToolbar(QWidget* targetToolbar)
 }
 ```
 
-## 3. SVG支持
+## 3. SVG支持（高 DPI 优化）
 
 - **Commit da76be8**
 
-由于原先是直接文字展示、观感不是很好，于是为了优化UI效果以及高精度UI支持，选择用 SVG 矢量图进行替换
+### 技术考量
 
-去 https://iconify.design/ 中拉下来 svg 代码
+由于原先是直接文字展示、观感不是很好，于是为了优化UI效果以及高精度UI支持，选择用 SVG 矢量图进行替换，这样不仅体积小、无损，还支持CSS样式控制
 
-然后在 Qt资源系统 resources.qrc 中导入，之后它们会被编译成 C++ 代码即可在代码中通过 相对路径 访问（类似于 webpack 的 @ ），通过 QIcon 类可以直接加载和使用 SVG
+### 实现流程
 
-如
+1. 去 https://iconify.design/ 中拉下来 svg 代码
+2. 然后在 Qt资源系统 resources.qrc 中导入，之后它们会被编译成 C++ 代码即可在代码中通过 相对路径 访问（类似于 webpack 的 @import  ）
+3. 代码上体现为，通过 QIcon 类可以直接加载和使用 SVG
 
 ```jsx
 btnText->setIcon(QIcon(":/icons/icons/text.svg"));
 ```
+
+### 性能考量
+
+Qt 会自动缓存 SVG 渲染结果，避免重复解析，所以是契合的
 
 # 放大镜
 
@@ -435,7 +461,7 @@ btnText->setIcon(QIcon(":/icons/icons/text.svg"));
 
 - 首先我去搜集了信息，Qt没有内置的放大镜API，windows上有 Magnification API ，macOS上有 Accessibility ，但是不符合跨平台的目标
 - 用 QGraphicsView 的变换能力模拟实现放大镜的话，实现复杂、性能一般
-- 不如手动维护：裁剪像素后用 drawPixmap 进行放大，虽然要处理 DPR 和边界判断，但是完全可控、跨平台且开销小
+- 不如手动维护：裁剪像素后用 drawPixmap 进行放大，虽然要处理 DPR 和边界判断，但是完全可控（开销仅仅 0.5ms/帧 ）、跨平台且开销小
 
 ## 2. 绘制思路
 
@@ -571,16 +597,44 @@ struct DrawnArrow {
         后加入到之前说的 arrows 向量中
         
 
-## 3. 偏移与放大的问题
+## 3. **高 DPI 双重缩放导致的放大问题**
 
-原因在于高分屏（Retina显示屏）下的坐标系处理冲突，导致了“**双重缩放**”
+### 问题现象
 
-1. 当时屏幕 DPR 为 2 ，1个逻辑单位 对应屏幕的 2个物理像素，screenPixmap 存储的是屏幕的原始物理像素数据
-2. 双重缩放，为了高清原图上绘制在代码中手动将坐标乘以 DPR，计算物理像素坐标，当用 screenPixmap 裁剪得到 croppedPixmap 时，保留了 DPR = 2 的属性，于是当用 QPainter 在其上面绘制时 ，**Qt会认为这是一个高分屏图片导致再次乘2**
+箭头绘制偏移且放大了两倍
 
-首先，我误认为是坐标精度丢失导致的，尝试提升了绘制函数的参数从整数的精度提高到浮点数，但是没有效果
+### 查找根因
 
-最后，我控制 **所有绘制走物理像素，由自己控制 DPR** ，虽然需要额外处理，但是控制精确，例如在创建croppedPixmap时手动调用 **croppedPixmap.setDevicePixelRation(1.0)** 告诉Qt不要将这张图当作普通像素图处理，那么QPaiter就会直接用我们计算好的物理坐标，解决了偏移和放大的问题
+```cpp
+window.devicePixelRatio
+```
+
+或
+
+```cpp
+QScreen *screen = QGuiApplication::primaryScreen();
+qreal dpr = screen->devicePixelRatio();
+qDebug() << "Device Pixel Ratio:" << dpr;
+```
+
+我检查了屏幕的 DPR ，发现和箭头的始末点放大倍数一致！都为2
+
+于是我分析
+
+1. screenPixmap 存储物理像素（3840×2160）
+2. 代码中手动 × DPR 计算物理坐标  // 第一次缩放
+3. croppedPixmap 继承 DPR = 2 属性
+4. QPainter 自动 × DPR 绘制          // Qt 的第二次缩放
+
+### 调试
+
+为了代码的统一性考虑，我控制 **所有绘制走物理像素，由自己管理 DPR** ，
+
+```cpp
+croppedPixmap.setDevicePixelRatio(1.0); 
+```
+
+禁止了 Qt 用 DPR 进行的自动缩放
 
 # OCR 文字识别
 
@@ -689,15 +743,15 @@ QString OcrManager::doRecognize(const QPixmap &pixmap) {
 
 ### **a. ⭐单例模式**
 
-**删除拷贝函数和赋值运算符，构造私有化，通过静态getter获取唯一实例**
+**删除拷贝函数和赋值运算符，构造私有化，通过静态getter获取唯一实例（线程安全）**
 
-首先想法就是避免每次调用都重新初始化Tesseract引擎
+避免每次调用都重新初始化Tesseract引擎（初始化耗时得有个 200ms）
 
-通过实现 OcrManager 类的单例化，引擎只会初始化一次，且单例是线程安全的，多线程并发的时候并不会紊乱（C++11之后确保了内部的变量初始化一次）
+PS: C++11之前，为了线程安全是需要手动加锁的，但是C++11 之后之需要开启 static 静态实例就能保证
 
 ### b. ⭐记忆化缓存
 
-使用图像哈希值作为键，防止重复识别图像
+使用 **图像哈希值** 作为键，防止重复识别图像（类似于 **LRU** 、 **useMemo** 、python3.8的**@cache**实现记忆型回溯 等）
 
 ```jsx
     if (ocrInstance->m_resultCache.contains(cacheKey))
@@ -706,9 +760,9 @@ QString OcrManager::doRecognize(const QPixmap &pixmap) {
     }
 ```
 
-### c. ⭐异步：并行运行后执行回调
+### c. ⭐异步识别-防止UI冻结
 
-由于OCR是无UI的计算任务，不用通过QThread，可以直接使用 **Qt Concurrent** 进行异步识别
+由于OCR是无UI的计算任务，不用通过QThread，可以直接使用 **Qt Concurrent** 进行异步识别，是线程池自动管理的，类似于 Web Worker
 
 ```jsx
     QtConcurrent::run([pixmap, callback]()
@@ -744,11 +798,11 @@ QString OcrManager::doRecognize(const QPixmap &pixmap) {
 
 # 国际化支持
 
-## 1. 使用 ⭐MCP 工具进行死文本替换
+## 1. 使用 ⭐MCP 工具进行硬编码文本替换
 
 - commit **746f7ef**
 
-通过 i18n MCP 进行了死文本的国际化文本替换
+通过 i18n MCP 进行了死文本的国际化文本替换，构建了文本数据集
 
 ```jsx
 {
@@ -765,11 +819,23 @@ QString OcrManager::doRecognize(const QPixmap &pixmap) {
 
 - commit 9f2e577
 
-后续优化：对于生产环境（需要做分流判断）直接引用包即可，不需要脚本复制，CI的时候仍然复制
+将 简体中文、英文、繁体中文 的翻译文件发布到了 npm 空间上，同时在构建脚本中添加了
 
-从而对 简体中文、英文、繁体中文 的翻译文件进行管理，后续需要对新语言支持只需要添加相应文件即可
+```cpp
+npm install @screensniper/locales
+```
 
-## 3. 翻译实现
+package.json 依赖文件中设置
+
+```cpp
+  "dependencies": {
+    "@screensniper/locales": "latest"
+  },
+```
+
+从而实现在开发环境自动更新包版本
+
+## 3. 代码使用
 
 I18nManager::instance()->getText(key, **defaultValue**)
 
@@ -952,7 +1018,10 @@ Endpoint: 标准接口的访问地址，可以去 https://platform.openai.com/do
 
 # 附录
 
-## 名词解释
+## 相关名词
 
 - DPI: **Dots Per Inch（每英寸像素点数量）** 的缩写，用来描述屏幕的 **像素密度。**即逻辑像素到物理像素的比例
 - DPR: **device Pixel Ratio（设备像素比）。**和 DPI 对应，代表 物理像素到逻辑像素 的比例
+- CoreGraphics：macOS 底层的 2D 绘图引擎，GPU和CPU共同驱动
+- GDI：Windows 上的 2D 绘图系统，CPU渲染、不利用GPU，导致性能较弱
+- X11：Linux/Unix 图形界面的基础协议
