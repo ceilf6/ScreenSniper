@@ -15,6 +15,9 @@
 #include "i18nmanager.h"
 #include "pinwidget.h"
 #include "aimanager.h"
+#ifndef NO_OPENCV
+#include "facedetector.h"
+#endif
 
 // 绘制形状数据结构
 struct DrawnArrow
@@ -182,6 +185,8 @@ private:
     void updateFontToolbarPosition();
     void editExistingText(int textIndex);
     void handleNoneMode(const QPoint &clickPos);
+    void selectTextForPropertyEdit(int textIndex);  // 单击文字时修改属性
+    void saveTextProperties();  // 保存文字属性（不修改文本内容）
 
     // pin到桌面
     void pinToDesktop();
@@ -246,6 +251,7 @@ private:
     QPushButton *btnPen;     // 画笔工具
     QPushButton *btnMosaic;  // 马赛克按钮
     QPushButton *btnBlur;    // 高斯模糊按钮
+    QPushButton *btnAutoFaceBlur;  // 自动人脸打码按钮
     QPushButton *btnPin;     // Pin到桌面按钮
 #ifndef NO_OPENCV
     QPushButton *btnWatermark; // 水印按钮
@@ -331,6 +337,7 @@ private:
     QPoint textClickStartPos; // 文字点击起始位置
     int textClickIndex;       // 文字点击索引
     bool potentialTextDrag;   // 是否可能是文字拖拽
+    bool textDoubleClicked;   // 是否发生了双击（用于区分单击和双击）
 
     // 字体工具栏相关
     QWidget *fontToolbar;
@@ -371,6 +378,18 @@ private:
     // 图片生成文字描述相关
     AiManager *m_aiManager;
     void onAiDescriptionBtnClicked();
+    
+    // 自动人脸打码相关函数
+    void autoDetectAndBlurFaces();  // 自动检测并打码人脸
+    
+#ifndef NO_OPENCV
+    // 自动人脸打码相关
+    FaceDetector* faceDetector;  // 人脸检测器实例
+    bool autoFaceBlurEnabled;  // 是否启用自动人脸打码（默认false）
+#else
+    void* faceDetector;  // 占位符
+    bool autoFaceBlurEnabled;  // 是否启用自动人脸打码（默认false）
+#endif
 };
 
 #endif // SCREENSHOTWIDGET_H

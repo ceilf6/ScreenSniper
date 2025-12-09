@@ -146,7 +146,7 @@ void AIConfigManager::saveIniFile(const QString &filePath, const QMap<QString, Q
             const QMap<QString, QString> &sectionConfig = sectionIter.value();
             
             // 写入节
-            out << "[" << section << "]" << endl;
+            out << "[" << section << "]" << Qt::endl;
             
             // 写入节内的键值对
             for (auto keyIter = sectionConfig.constBegin(); keyIter != sectionConfig.constEnd(); ++keyIter)
@@ -154,11 +154,11 @@ void AIConfigManager::saveIniFile(const QString &filePath, const QMap<QString, Q
                 const QString &key = keyIter.key();
                 const QString &value = keyIter.value();
                 
-                out << key << "=" << value << endl;
+                out << key << "=" << value << Qt::endl;
             }
             
             // 节之间空一行
-            out << endl;
+            out << Qt::endl;
         }
         
         file.close();

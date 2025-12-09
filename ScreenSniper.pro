@@ -1,5 +1,8 @@
 QT       += core gui widgets network
 
+# 明确移除 NO_OPENCV 定义（如果存在）
+DEFINES -= NO_OPENCV
+
 win32 {
     LIBS += -lPsapi -lDwmapi
 }
@@ -24,7 +27,9 @@ macx {
             -lopencv_imgproc \
             -lopencv_highgui \
             -lopencv_imgcodecs \
-            -lopencv_videoio
+            -lopencv_videoio \
+            -lopencv_dnn \
+            -lopencv_objdetect
 }
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -54,21 +59,19 @@ unix:!macx {
 }
 win32 {
     # Windows 配置
-    # OpenCV暂时禁用（MinGW与MSVC库不兼容）
-    # INCLUDEPATH += "D:/C++/opencv/build/include"
-    # DEPENDPATH += "D:/C++/opencv/build/include"
-    # INCLUDEPATH += "D:/C++/opencv/build/include/opencv2"
-    # DEPENDPATH += "D:/C++/opencv/build/include/opencv2"
-    # LIBS += -L"D:/C++/opencv/build/x64/vc16/lib"
-    # CONFIG(debug, debug|release) {
-    #     LIBS += -lopencv_world480d
-    #     DEFINES += OPENCV_DEBUG
-    # } else {
-    #     LIBS += -lopencv_world480
-    # }
-
-    # 禁用水印功能
-    DEFINES += NO_OPENCV
+    # OpenCV 配置
+    # 明确移除 NO_OPENCV 定义（如果之前有定义）
+    DEFINES -= NO_OPENCV
+    
+    # OpenCV头文件路径
+    INCLUDEPATH += D:/rr/opencv/opencv/opencv_bulid/install/include
+    
+    # OpenCV库文件路径 + 链接库
+    LIBS += -LD:/rr/opencv/opencv/opencv_bulid/lib
+    LIBS += -lopencv_calib3d4120 -lopencv_core4120 -lopencv_dnn4120 -lopencv_features2d4120 \
+            -lopencv_flann4120 -lopencv_highgui4120 -lopencv_imgcodecs4120 -lopencv_imgproc4120 \
+            -lopencv_ml4120 -lopencv_objdetect4120 -lopencv_photo4120 -lopencv_stitching4120 \
+            -lopencv_ts4120 -lopencv_video4120 -lopencv_videoio4120
 
     # Tesseract configuration for Windows
     # 请根据实际安装路径修改
@@ -98,7 +101,8 @@ SOURCES += \
     ocrmanager.cpp \
     ocrresultdialog.cpp \
     watermark_robust.cpp \
-    i18nmanager.cpp
+    i18nmanager.cpp \
+    facedetector.cpp
 
 HEADERS += \
     aiconfigmanager.h \
@@ -109,7 +113,8 @@ HEADERS += \
     ocrmanager.h \
     ocrresultdialog.h \
     watermark_robust.h \
-    i18nmanager.h
+    i18nmanager.h \
+    facedetector.h
 
 FORMS += \
     mainwindow.ui

@@ -24,10 +24,11 @@ QMutex OcrManager::m_instanceMutex;
 
 OcrManager::OcrManager()
 #ifdef USE_TESSERACT
-    : m_tesseractApi(nullptr), m_tesseractInitialized(false)
-#endif
-      ,
+    : m_tesseractApi(nullptr), m_tesseractInitialized(false),
       m_language("chi_sim+eng"), m_imageScaleFactor(1.0)
+#else
+    : m_language("chi_sim+eng"), m_imageScaleFactor(1.0)
+#endif
 {
     // 初始化结果缓存，最多缓存50个结果
     m_resultCache.setMaxCost(50);

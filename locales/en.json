@@ -85,5 +85,13 @@
   "pin_save": "Save As...",
   "pin_close": "Close Pin",
   "save_image": "Save Image",
-  "tooltip_break": "Break"
+  "tooltip_break": "Break",
+  "tooltip_auto_face_blur": "Auto Face Blur",
+  "face_blur_error_title": "Error",
+  "face_blur_no_selection": "Please select a screenshot area first",
+  "face_blur_detector_null": "Face detector not initialized, please check OpenCV configuration",
+  "face_blur_init_failed": "Face detector initialization failed\n\nPossible reasons:\n1. Model files missing (opencv_face_detector_uint8.pb and opencv_face_detector.pbtxt.txt)\n2. OpenCV library not properly configured\n\nPlease check if model files exist in the models directory",
+  "face_blur_not_ready": "Face detector is still not available after initialization\n\nPlease check:\n1. If model files are complete\n2. If OpenCV library is correctly installed",
+  "face_blur_not_available_title": "Feature Unavailable",
+  "face_blur_opencv_disabled": "Face recognition feature requires OpenCV support\n\nCurrent build has OpenCV disabled (NO_OPENCV is defined)\n\nTo enable this feature, please:\n1. Install OpenCV library\n2. Configure OpenCV path in ScreenSniper.pro\n3. Remove DEFINES += NO_OPENCV definition\n4. Rebuild the project"
 }

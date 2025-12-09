@@ -1,4 +1,5 @@
 #include "watermark_robust.h"
+#ifndef NO_OPENCV
 #include <vector>
 #include <random>
 #include <cstring>
@@ -386,3 +387,4 @@ bool extractRobustWatermark(const cv::Mat &image, std::string &outText)
         outText.push_back(static_cast<char>(c));
     return true;
 }
+#endif // NO_OPENCV

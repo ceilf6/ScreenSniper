@@ -85,5 +85,13 @@
   "pin_save": "另存為...",
   "pin_close": "關閉貼圖",
   "save_image": "保存圖片",
-  "tooltip_break": "退出"
+  "tooltip_break": "退出",
+  "tooltip_auto_face_blur": "自動人臉打碼",
+  "face_blur_error_title": "錯誤",
+  "face_blur_no_selection": "請先選擇截圖區域",
+  "face_blur_detector_null": "人臉檢測器未初始化，請檢查 OpenCV 配置",
+  "face_blur_init_failed": "人臉檢測器初始化失敗\n\n可能的原因：\n1. 模型文件缺失（opencv_face_detector_uint8.pb 和 opencv_face_detector.pbtxt.txt）\n2. OpenCV 庫未正確配置\n\n請檢查 models 目錄下是否有模型文件",
+  "face_blur_not_ready": "人臉檢測器初始化後仍不可用\n\n請檢查：\n1. 模型文件是否完整\n2. OpenCV 庫是否正確安裝",
+  "face_blur_not_available_title": "功能不可用",
+  "face_blur_opencv_disabled": "人臉識別功能需要 OpenCV 支持\n\n當前編譯版本已禁用 OpenCV（NO_OPENCV 已定義）\n\n要啟用此功能，請：\n1. 安裝 OpenCV 庫\n2. 在 ScreenSniper.pro 中配置 OpenCV 路徑\n3. 移除 DEFINES += NO_OPENCV 定義\n4. 重新編譯項目"
 }
