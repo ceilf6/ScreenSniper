@@ -2431,8 +2431,13 @@ void ScreenshotWidget::saveScreenshot()
         }
         emit screenshotTaken(); // 发射截图完成信号
         hide();                 // 隐藏当前窗口
-        QApplication::quit();   // 退出整个应用程序
+        // QApplication::quit();   // 退出整个应用程序
         // 如果用户取消保存，不做任何操作，保持当前状态（工具栏仍然可见）
+        if (mainWindow)
+        {
+            mainWindow->show();
+        }
+        close();
     }
 }
 
@@ -2575,7 +2580,12 @@ void ScreenshotWidget::copyToClipboard()
 
     emit screenshotTaken();
     hide();
-    QApplication::quit();
+    // QApplication::quit();
+    if (mainWindow)
+    {
+        mainWindow->show();
+    }
+    close();
 }
 
 void ScreenshotWidget::drawArrow(QPainter &painter, const QPointF &start, const QPointF &end, const QColor &color, int width, double scale)
