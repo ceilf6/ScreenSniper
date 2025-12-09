@@ -1484,6 +1484,36 @@ void ScreenshotWidget::mousePressEvent(QMouseEvent *event)
         // 处理文字编辑模式（None模式下的其他操作）
         if (selected && currentDrawMode == None)
         {
+            // 如果点击在选中矩形外部，重新开始选择区域
+            if (!selectedRect.contains(clickPos))
+            {
+                // 重新开始选择区域
+                startPoint = clickPos;
+                endPoint = clickPos;
+                currentMousePos = clickPos;
+                selecting = true;
+                selected = false;
+                
+                // 清除之前的状态
+                if (toolbar)
+                    toolbar->hide();
+                if (shapesToolbar)
+                    shapesToolbar->hide();
+                if (penToolbar)
+                    penToolbar->hide();
+                if (fontToolbar)
+                    fontToolbar->hide();
+                if (EffectToolbar)
+                    EffectToolbar->hide();
+                
+                showMagnifier = true;
+                EffectAreas.clear();
+                EffectStrengths.clear();
+                effectTypes.clear();
+                update();
+                return;
+            }
+            
             // 没有点击文字，调用handleNoneMode
             handleNoneMode(clickPos);
             return;
