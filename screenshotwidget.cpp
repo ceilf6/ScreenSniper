@@ -336,13 +336,40 @@ void ScreenshotWidget::setupToolbar()
     // 主工具栏设置
     toolbar = new QWidget(this);
     toolbar->setStyleSheet(
-        "QWidget { background-color: rgba(40, 40, 40, 200); border-radius: 5px; }"
-        "QPushButton { background-color: rgba(60, 60, 60, 255); color: white; "
-        "border: none; padding: 6px; border-radius: 3px; }"
-        "QPushButton:hover { background-color: rgba(80, 80, 80, 255); }"
-        "QPushButton:pressed { background-color: rgba(50, 50, 50, 255); }"
-        "QLabel { background-color: transparent; color: white; padding: 5px; font-size: 12px; }"
-        "QPushButton:checked { background-color: rgba(0, 150, 255, 255); }");
+        "QWidget#toolbar { "
+        "background-color: rgba(40, 40, 40, 220); "
+        "border-radius: 8px; "
+        "border: 1px solid rgba(255, 255, 255, 25); "
+        "} "
+        "QPushButton { "
+        "background-color: transparent; "
+        "color: white; "
+        "border: none; "
+        "padding: 8px; "
+        "border-radius: 6px; "
+        "} "
+        "QPushButton:hover { "
+        "background-color: rgba(255, 255, 255, 40); "
+        "} "
+        "QPushButton:pressed { "
+        "background-color: rgba(255, 255, 255, 60); "
+        "} "
+        "QPushButton:checked { "
+        "background-color: rgba(0, 150, 255, 80); "
+        "border: 2px solid rgba(0, 150, 255, 200); "
+        "} "
+        "QPushButton:disabled { "
+        "background-color: rgba(60, 60, 60, 100); "
+        "color: rgba(255, 255, 255, 100); "
+        "} "
+        "QLabel { "
+        "background-color: transparent; "
+        "color: white; "
+        "padding: 5px; "
+        "font-size: 12px; "
+        "}");
+
+    toolbar->setObjectName("toolbar");
 
     QHBoxLayout *layout = new QHBoxLayout(toolbar);
     layout->setSpacing(5);
@@ -351,84 +378,84 @@ void ScreenshotWidget::setupToolbar()
     // 绘制工具
     btnShapes = new QPushButton(toolbar);
     btnShapes->setIcon(QIcon(":/icons/icons/shapes.svg"));
-    btnShapes->setIconSize(QSize(20, 20));
+    btnShapes->setIconSize(QSize(22, 22));
     btnShapes->setToolTip(getText("tooltip_shapes", "形状"));
-    btnShapes->setFixedSize(36, 36);
+    btnShapes->setFixedSize(40, 40);
 
     btnText = new QPushButton(toolbar);
     btnText->setIcon(QIcon(":/icons/icons/text.svg"));
-    btnText->setIconSize(QSize(20, 20));
+    btnText->setIconSize(QSize(22, 22));
     btnText->setToolTip(getText("tooltip_text", "文字"));
-    btnText->setFixedSize(36, 36);
+    btnText->setFixedSize(40, 40);
 
     btnPen = new QPushButton(toolbar);
     btnPen->setIcon(QIcon(":/icons/icons/pen.svg"));
-    btnPen->setIconSize(QSize(20, 20));
+    btnPen->setIconSize(QSize(22, 22));
     btnPen->setToolTip(getText("tooltip_pen", "画笔"));
-    btnPen->setFixedSize(36, 36);
+    btnPen->setFixedSize(40, 40);
 
     btnMosaic = new QPushButton(toolbar);
     btnMosaic->setIcon(QIcon(":/icons/icons/mosaic.svg"));
-    btnMosaic->setIconSize(QSize(20, 20));
+    btnMosaic->setIconSize(QSize(22, 22));
     btnMosaic->setToolTip(getText("tooltip_mosaic", "马赛克"));
-    btnMosaic->setFixedSize(36, 36);
+    btnMosaic->setFixedSize(40, 40);
 
     btnBlur = new QPushButton(toolbar);
     btnBlur->setIcon(QIcon(":/icons/icons/blur.svg"));
-    btnBlur->setIconSize(QSize(20, 20));
+    btnBlur->setIconSize(QSize(22, 22));
     btnBlur->setToolTip(getText("tooltip_blur", "高斯模糊"));
-    btnBlur->setFixedSize(36, 36);
+    btnBlur->setFixedSize(40, 40);
 
 #ifndef NO_OPENCV
     btnWatermark = new QPushButton(toolbar);
     btnWatermark->setIcon(QIcon(":/icons/icons/watermark.svg"));
-    btnWatermark->setIconSize(QSize(20, 20));
+    btnWatermark->setIconSize(QSize(22, 22));
     btnWatermark->setToolTip(getText("tooltip_watermark", "隐水印"));
-    btnWatermark->setFixedSize(36, 36);
+    btnWatermark->setFixedSize(40, 40);
 #endif
 
     btnOCR = new QPushButton(toolbar);
     btnOCR->setIcon(QIcon(":/icons/icons/ocr.svg"));
-    btnOCR->setIconSize(QSize(20, 20));
+    btnOCR->setIconSize(QSize(22, 22));
     btnOCR->setToolTip(getText("tooltip_ocr", "OCR文字识别"));
-    btnOCR->setFixedSize(36, 36);
+    btnOCR->setFixedSize(40, 40);
 
     btnAIDescription = new QPushButton(toolbar);
     btnAIDescription->setIcon(QIcon(":/icons/icons/aidesc.svg"));
-    btnAIDescription->setIconSize(QSize(20, 20));
+    btnAIDescription->setIconSize(QSize(22, 22));
     btnAIDescription->setToolTip(getText("tooltip_ai_description", "AI图片描述"));
-    btnAIDescription->setFixedSize(36, 36);
+    btnAIDescription->setFixedSize(40, 40);
 
     // 操作按钮
     btnSave = new QPushButton(toolbar);
     btnSave->setIcon(QIcon(":/icons/icons/save.svg"));
-    btnSave->setIconSize(QSize(20, 20));
+    btnSave->setIconSize(QSize(22, 22));
     btnSave->setToolTip(getText("tooltip_save", "保存"));
-    btnSave->setFixedSize(36, 36);
+    btnSave->setFixedSize(40, 40);
 
     btnCopy = new QPushButton(toolbar);
     btnCopy->setIcon(QIcon(":/icons/icons/copy.svg"));
-    btnCopy->setIconSize(QSize(20, 20));
+    btnCopy->setIconSize(QSize(22, 22));
     btnCopy->setToolTip(getText("tooltip_copy", "复制"));
-    btnCopy->setFixedSize(36, 36);
+    btnCopy->setFixedSize(40, 40);
 
     btnPin = new QPushButton(toolbar);
     btnPin->setIcon(QIcon(":/icons/icons/pin.svg"));
-    btnPin->setIconSize(QSize(20, 20));
+    btnPin->setIconSize(QSize(22, 22));
     btnPin->setToolTip(getText("tooltip_pin", "贴图"));
-    btnPin->setFixedSize(36, 36);
+    btnPin->setFixedSize(40, 40);
 
     btnCancel = new QPushButton(toolbar);
     btnCancel->setIcon(QIcon(":/icons/icons/cancel.svg"));
-    btnCancel->setIconSize(QSize(20, 20));
+    btnCancel->setIconSize(QSize(22, 22));
     btnCancel->setToolTip(getText("tooltip_cancel", "取消"));
-    btnCancel->setFixedSize(36, 36);
+    btnCancel->setFixedSize(40, 40);
 
     btnBreak = new QPushButton(toolbar);
     btnBreak->setIcon(QIcon(":/icons/icons/break.svg"));
-    btnBreak->setIconSize(QSize(20, 20));
+    btnBreak->setIconSize(QSize(22, 22));
     btnBreak->setToolTip(getText("tooltip_break", "退出"));
-    btnBreak->setFixedSize(36, 36);
+    btnBreak->setFixedSize(40, 40);
 
     layout->addWidget(btnShapes);
     layout->addWidget(btnText);
@@ -439,9 +466,9 @@ void ScreenshotWidget::setupToolbar()
 
     btnAutoFaceBlur = new QPushButton(toolbar);
     btnAutoFaceBlur->setIcon(QIcon(":/icons/icons/face_blur.svg"));
-    btnAutoFaceBlur->setIconSize(QSize(20, 20));
+    btnAutoFaceBlur->setIconSize(QSize(22, 22));
     btnAutoFaceBlur->setToolTip(getText("tooltip_auto_face_blur", "自动人脸打码"));
-    btnAutoFaceBlur->setFixedSize(36, 36);
+    btnAutoFaceBlur->setFixedSize(40, 40);
     layout->addWidget(btnAutoFaceBlur); // 自动人脸打码按钮
 
 #ifndef NO_OPENCV
