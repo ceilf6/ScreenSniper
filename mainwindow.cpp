@@ -63,7 +63,8 @@ MainWindow::MainWindow(QWidget *parent)
 
 MainWindow::~MainWindow()
 {
-    if (m_globalHotkey) {
+    if (m_globalHotkey)
+    {
         m_globalHotkey->unregisterAll();
         delete m_globalHotkey;
     }
@@ -152,9 +153,10 @@ void MainWindow::setupGlobalHotkeys()
 {
     // 创建全局快捷键管理器
     m_globalHotkey = new GlobalHotkey(this);
-    
+
     // 连接快捷键触发信号
-    connect(m_globalHotkey, &GlobalHotkey::activated, this, [this](int id) {
+    connect(m_globalHotkey, &GlobalHotkey::activated, this, [this](int id)
+            {
         qDebug() << "Global hotkey activated:" << id;
         
         switch (id) {
@@ -166,25 +168,30 @@ void MainWindow::setupGlobalHotkeys()
                 break;
             default:
                 break;
-        }
-    });
-    
+        } });
+
     // 注册快捷键
     // ID 1: Ctrl+Shift+S - 全屏截图 (macOS上使用Cmd+Shift+S)
-    bool success1 = m_globalHotkey->registerHotkey(1, Qt::Key_S, 
-                                                     Qt::ControlModifier | Qt::ShiftModifier);
-    if (success1) {
+    bool success1 = m_globalHotkey->registerHotkey(1, Qt::Key_S,
+                                                   Qt::ControlModifier | Qt::ShiftModifier);
+    if (success1)
+    {
         qDebug() << "Successfully registered Ctrl+Shift+S (macOS: Cmd+Shift+S)";
-    } else {
+    }
+    else
+    {
         qWarning() << "Failed to register Ctrl+Shift+S";
     }
-    
+
     // ID 2: Ctrl+Shift+A - 区域截图 (macOS上使用Cmd+Shift+A)
-    bool success2 = m_globalHotkey->registerHotkey(2, Qt::Key_A, 
-                                                     Qt::ControlModifier | Qt::ShiftModifier);
-    if (success2) {
+    bool success2 = m_globalHotkey->registerHotkey(2, Qt::Key_A,
+                                                   Qt::ControlModifier | Qt::ShiftModifier);
+    if (success2)
+    {
         qDebug() << "Successfully registered Ctrl+Shift+A (macOS: Cmd+Shift+A)";
-    } else {
+    }
+    else
+    {
         qWarning() << "Failed to register Ctrl+Shift+A";
     }
 }

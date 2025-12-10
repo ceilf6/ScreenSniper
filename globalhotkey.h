@@ -16,10 +16,10 @@ public:
 
     // 注册全局快捷键
     bool registerHotkey(int id, Qt::Key key, Qt::KeyboardModifiers modifiers);
-    
+
     // 注销全局快捷键
     void unregisterHotkey(int id);
-    
+
     // 注销所有快捷键
     void unregisterAll();
 
@@ -35,7 +35,8 @@ protected:
 #endif
 
 private:
-    struct HotkeyData {
+    struct HotkeyData
+    {
         Qt::Key key;
         Qt::KeyboardModifiers modifiers;
 #ifdef Q_OS_WIN
@@ -43,18 +44,18 @@ private:
         quint32 nativeModifiers;
 #endif
 #ifdef Q_OS_MAC
-        void *hotkeyRef;  // EventHotKeyRef
+        void *hotkeyRef; // EventHotKeyRef
 #endif
     };
 
     QHash<int, HotkeyData> m_hotkeys;
-    
+
     // 将Qt的键和修饰符转换为平台相关的键码
     bool registerNativeHotkey(int id, Qt::Key key, Qt::KeyboardModifiers modifiers);
     void unregisterNativeHotkey(int id);
 
 #ifdef Q_OS_MAC
-    void *m_eventHandler;  // macOS事件处理器
+    void *m_eventHandler; // macOS事件处理器
 #endif
 };
 
