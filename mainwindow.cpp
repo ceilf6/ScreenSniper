@@ -31,11 +31,14 @@ MainWindow::MainWindow(QWidget *parent)
       btnFullScreen(nullptr),
       btnArea(nullptr),
       btnSettings(nullptr),
+      btnScroll(nullptr),
       actionFullScreen(nullptr),
+      actionScroll(nullptr),
       actionArea(nullptr),
       actionShow(nullptr),
       actionAbout(nullptr),
-      actionQuit(nullptr)
+      actionQuit(nullptr),
+      m_globalHotkey(nullptr)
 {
     ui->setupUi(this);
 
@@ -55,10 +58,15 @@ MainWindow::MainWindow(QWidget *parent)
     setupUI();
     setupTrayIcon();
     setupConnections();
+    setupGlobalHotkeys();
 }
 
 MainWindow::~MainWindow()
 {
+    if (m_globalHotkey) {
+        m_globalHotkey->unregisterAll();
+        delete m_globalHotkey;
+    }
     delete ui;
     // screenshotWidget会通过deleteLater()自动删除
 }
@@ -137,8 +145,48 @@ void MainWindow::setupTrayIcon()
 
 void MainWindow::setupConnections()
 {
-    // 设置全局快捷键
-    // 注意：需要使用平台相关的API或第三方库实现全局快捷键
+    // 其他连接已在 setupUI 和 setupTrayIcon 中完成
+}
+
+void MainWindow::setupGlobalHotkeys()
+{
+    // 创建全局快捷键管理器
+    m_globalHotkey = new GlobalHotkey(this);
+    
+    // 连接快捷键触发信号
+    connect(m_globalHotkey, &GlobalHotkey::activated, this, [this](int id) {
+        qDebug() << "Global hotkey activated:" << id;
+        
+        switch (id) {
+            case 1:  // Ctrl+Shift+F - 全屏截图
+                onCaptureScreen();
+                break;
+            case 2:  // Ctrl+Shift+A - 区域截图
+                onCaptureArea();
+                break;
+            default:
+                break;
+        }
+    });
+    
+    // 注册快捷键
+    // ID 1: Ctrl+Shift+S - 全屏截图 (macOS上使用Cmd+Shift+S)
+    bool success1 = m_globalHotkey->registerHotkey(1, Qt::Key_S, 
+                                                     Qt::ControlModifier | Qt::ShiftModifier);
+    if (success1) {
+        qDebug() << "Successfully registered Ctrl+Shift+S (macOS: Cmd+Shift+S)";
+    } else {
+        qWarning() << "Failed to register Ctrl+Shift+S";
+    }
+    
+    // ID 2: Ctrl+Shift+A - 区域截图 (macOS上使用Cmd+Shift+A)
+    bool success2 = m_globalHotkey->registerHotkey(2, Qt::Key_A, 
+                                                     Qt::ControlModifier | Qt::ShiftModifier);
+    if (success2) {
+        qDebug() << "Successfully registered Ctrl+Shift+A (macOS: Cmd+Shift+A)";
+    } else {
+        qWarning() << "Failed to register Ctrl+Shift+A";
+    }
 }
 
 void MainWindow::onCaptureScreen()

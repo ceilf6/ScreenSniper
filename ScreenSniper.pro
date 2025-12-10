@@ -10,6 +10,7 @@ macx {
     LIBS += -framework CoreGraphics
     LIBS += -framework Vision
     LIBS += -framework AppKit
+    LIBS += -framework Carbon
     
     OBJECTIVE_SOURCES += macocr.mm
     HEADERS += macocr.h
@@ -121,7 +122,8 @@ SOURCES += \
     scrollcapture.cpp \
     watermark_robust.cpp \
     i18nmanager.cpp \
-    facedetector.cpp
+    facedetector.cpp \
+    globalhotkey.cpp
 
 HEADERS += \
     aiconfigmanager.h \
@@ -134,7 +136,8 @@ HEADERS += \
     scrollcapture.h \
     watermark_robust.h \
     i18nmanager.h \
-    facedetector.h
+    facedetector.h \
+    globalhotkey.h
 
 FORMS += \
     mainwindow.ui

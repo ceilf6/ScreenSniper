@@ -7,6 +7,7 @@
 #include <QAction>
 #include "i18nmanager.h"
 #include "screenshotwidget.h"
+#include "globalhotkey.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui
@@ -41,12 +42,14 @@ private:
     void setupUI();
     void setupTrayIcon();
     void setupConnections();
+    void setupGlobalHotkeys();
     void updateUI();
 
     Ui::MainWindow *ui;
     QSystemTrayIcon *trayIcon;
     QMenu *trayMenu;
     QString currentLanguage;  // 当前语言设置: "zh", "en", "zhHK"
+    GlobalHotkey *m_globalHotkey;  // 全局快捷键管理器
 
     // UI 元素引用，用于更新文本
     QPushButton *btnFullScreen;
