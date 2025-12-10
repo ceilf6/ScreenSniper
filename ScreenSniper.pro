@@ -57,32 +57,50 @@ unix:!macx {
     # LIBS += -lXrender
     # LIBS += -lXrandr
 }
+# win32 {
+#     # Windows 配置
+#     # OpenCV 配置
+#     # 明确移除 NO_OPENCV 定义（如果之前有定义）
+#     DEFINES -= NO_OPENCV
+    
+#     # OpenCV头文件路径
+#     INCLUDEPATH += D:/rr/opencv/opencv/opencv_bulid/install/include
+    
+#     # OpenCV库文件路径 + 链接库
+#     LIBS += -LD:/rr/opencv/opencv/opencv_bulid/lib
+#     LIBS += -lopencv_calib3d4120 -lopencv_core4120 -lopencv_dnn4120 -lopencv_features2d4120 \
+#             -lopencv_flann4120 -lopencv_highgui4120 -lopencv_imgcodecs4120 -lopencv_imgproc4120 \
+#             -lopencv_ml4120 -lopencv_objdetect4120 -lopencv_photo4120 -lopencv_stitching4120 \
+#             -lopencv_ts4120 -lopencv_video4120 -lopencv_videoio4120
+
+#     # Tesseract configuration for Windows
+#     # 请根据实际安装路径修改
+#     # DEFINES += USE_TESSERACT
+#     # INCLUDEPATH += "C:/Program Files/Tesseract-OCR/include"
+#     # LIBS += -L"C:/Program Files/Tesseract-OCR/lib" -ltesseract51
+
+#     LIBS += -lPsapi -lDwmapi
+# }
+
 win32 {
     # Windows 配置
-    # OpenCV 配置
-    # 明确移除 NO_OPENCV 定义（如果之前有定义）
-    DEFINES -= NO_OPENCV
-    
-    # OpenCV头文件路径
-    INCLUDEPATH += D:/rr/opencv/opencv/opencv_bulid/install/include
-    
-    # OpenCV库文件路径 + 链接库
-    LIBS += -LD:/rr/opencv/opencv/opencv_bulid/lib
-    LIBS += -lopencv_calib3d4120 -lopencv_core4120 -lopencv_dnn4120 -lopencv_features2d4120 \
-            -lopencv_flann4120 -lopencv_highgui4120 -lopencv_imgcodecs4120 -lopencv_imgproc4120 \
-            -lopencv_ml4120 -lopencv_objdetect4120 -lopencv_photo4120 -lopencv_stitching4120 \
-            -lopencv_ts4120 -lopencv_video4120 -lopencv_videoio4120
+    INCLUDEPATH += "D:/C++/opencv/build/include"
+    DEPENDPATH += "D:/C++/opencv/build/include"
 
-    # Tesseract configuration for Windows
-    # 请根据实际安装路径修改
-    # DEFINES += USE_TESSERACT
-    # INCLUDEPATH += "C:/Program Files/Tesseract-OCR/include"
-    # LIBS += -L"C:/Program Files/Tesseract-OCR/lib" -ltesseract51
+    # 显式添加 opencv2 子目录
+    INCLUDEPATH += "D:/C++/opencv/build/include/opencv2"
+    DEPENDPATH += "D:/C++/opencv/build/include/opencv2"
 
     LIBS += -lPsapi -lDwmapi
+    LIBS += -L"D:/C++/opencv/build/x64/vc16/lib"
+
+    CONFIG(debug, debug|release) {
+        LIBS += -lopencv_world4120d
+        DEFINES += OPENCV_DEBUG
+    } else {
+        LIBS += -lopencv_world4120
+    }
 }
-
-
 
 
 
@@ -100,6 +118,7 @@ SOURCES += \
     screenshotwidget.cpp \
     ocrmanager.cpp \
     ocrresultdialog.cpp \
+    scrollcapture.cpp \
     watermark_robust.cpp \
     i18nmanager.cpp \
     facedetector.cpp
@@ -112,6 +131,7 @@ HEADERS += \
     screenshotwidget.h \
     ocrmanager.h \
     ocrresultdialog.h \
+    scrollcapture.h \
     watermark_robust.h \
     i18nmanager.h \
     facedetector.h

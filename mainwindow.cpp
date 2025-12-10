@@ -21,6 +21,7 @@
 #include <QHBoxLayout>
 #include <QDialogButtonBox>
 #include <QPointer>
+#include "ScrollCapture.h"
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent),
@@ -49,7 +50,7 @@ MainWindow::MainWindow(QWidget *parent)
     currentLanguage = I18nManager::instance()->currentLanguage();
 
     setWindowTitle(getText("app_title", "ScreenSniper - 截图工具"));
-    resize(400, 300);
+    resize(400, 350);
 
     setupUI();
     setupTrayIcon();
@@ -71,14 +72,17 @@ void MainWindow::setupUI()
     // 添加按钮（使用多语言文本）
     btnFullScreen = new QPushButton(getText("btn_fullscreen", "截取全屏 (Ctrl+Shift+F)"), this);
     btnArea = new QPushButton(getText("btn_area", "截取区域 (Ctrl+Shift+A)"), this);
+    btnScroll = new QPushButton(getText("btnScroll ", "滚动截图"), this);
     btnSettings = new QPushButton(getText("btn_settings", "设置"), this);
 
     btnFullScreen->setMinimumHeight(40);
     btnArea->setMinimumHeight(40);
+    btnScroll->setMinimumHeight(40); // 设置相同的高度
     btnSettings->setMinimumHeight(40);
 
     layout->addWidget(btnFullScreen);
     layout->addWidget(btnArea);
+    layout->addWidget(btnScroll); // 将按钮加入布局
     layout->addWidget(btnSettings);
     layout->addStretch();
 
@@ -87,6 +91,7 @@ void MainWindow::setupUI()
     // 连接按钮信号
     connect(btnFullScreen, &QPushButton::clicked, this, &MainWindow::onCaptureScreen);
     connect(btnArea, &QPushButton::clicked, this, &MainWindow::onCaptureArea);
+    connect(btnScroll, &QPushButton::clicked, this, &MainWindow::onCaptureScroll);
     connect(btnSettings, &QPushButton::clicked, this, &MainWindow::onSettings);
 }
 
@@ -102,12 +107,15 @@ void MainWindow::setupTrayIcon()
 
     actionFullScreen = new QAction(getText("tray_fullscreen", "截取全屏"), this);
     actionArea = new QAction(getText("tray_area", "截取区域"), this);
+    actionScroll= new QAction(getText("tray_roll", "滚动截图"), this);
     actionShow = new QAction(getText("tray_show", "显示主窗口"), this);
+
     actionAbout = new QAction(getText("tray_about", "关于"), this);
     actionQuit = new QAction(getText("tray_quit", "退出"), this);
 
     trayMenu->addAction(actionFullScreen);
     trayMenu->addAction(actionArea);
+    trayMenu->addAction(actionScroll);
     trayMenu->addSeparator();
     trayMenu->addAction(actionShow);
     trayMenu->addAction(actionAbout);
@@ -120,6 +128,7 @@ void MainWindow::setupTrayIcon()
     // 连接托盘信号
     connect(actionFullScreen, &QAction::triggered, this, &MainWindow::onCaptureScreen);
     connect(actionArea, &QAction::triggered, this, &MainWindow::onCaptureArea);
+    connect(actionScroll, &QAction::triggered, this, &MainWindow::onCaptureScroll);
     connect(actionShow, &QAction::triggered, this, &MainWindow::show);
     connect(actionAbout, &QAction::triggered, this, &MainWindow::onAbout);
     connect(actionQuit, &QAction::triggered, qApp, &QApplication::quit);
@@ -192,7 +201,25 @@ void MainWindow::onCaptureWindow()
 {
     onCaptureArea();
 }
+void MainWindow::onCaptureScroll()
+{
+    hide();
+    ScrollCaptureWindow *scrollWin = new ScrollCaptureWindow(nullptr);
 
+    connect(scrollWin, &ScrollCaptureWindow::captureFinished, this, [this](QImage result){
+        if(result.isNull()) {
+            this->show();
+            return;
+        }
+
+        // 直接进入 ScreenshotWidget 编辑/查看
+        ScreenshotWidget *widget = new ScreenshotWidget();
+        widget->setCapturedImage(result);
+        widget->show();
+    });
+
+    QTimer::singleShot(300, scrollWin, &ScrollCaptureWindow::startCapture);
+}
 void MainWindow::onSettings()
 {
     QDialog dialog(this);
@@ -296,6 +323,8 @@ void MainWindow::updateUI()
     // 更新主窗口按钮文本
     if (btnFullScreen)
         btnFullScreen->setText(getText("btn_fullscreen", "截取全屏 (Ctrl+Shift+F)"));
+    if (btnArea)
+        btnArea->setText(getText("btn_area", "截取区域 (Ctrl+Shift+A)"));
     if (btnArea)
         btnArea->setText(getText("btn_area", "截取区域 (Ctrl+Shift+A)"));
     if (btnSettings)

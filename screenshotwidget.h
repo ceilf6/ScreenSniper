@@ -89,7 +89,7 @@ public:
 
     void startCapture();
     void startCaptureFullScreen(); // 直接截取全屏并显示工具栏
-
+    void setCapturedImage(const QImage& image);//长截图
     // 国际化支持
     void setMainWindow(QWidget *mainWin);
     QString getText(const QString &key, const QString &defaultText = "") const;
@@ -140,6 +140,11 @@ private:
     void updateBlurStrengthLabel();
     void updateBlurToolbarPosition();
     // 马赛克相关函数：
+    enum CaptureMode {
+        NormalMode,     // 普通截图模式
+        ScrollMode      // 长截图模式
+    };
+
     enum DrawMode
     {
         None,
@@ -271,7 +276,7 @@ private:
     QPoint EffectEndPoint;
     QList<QRect> EffectAreas; // 存储所有模糊区域
     QList<int> EffectStrengths;
-
+    CaptureMode captureMode;  // 当前截图模式
     // 强度调节工具栏
     int currentEffectStrength = 20; // 强度
     int EffectBlockSize;            // 块大小
