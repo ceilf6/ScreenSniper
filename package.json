@@ -17,7 +17,6 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@screensniper/locales": "latest"
-  },
-  "devDependencies": {}
+    "@screensniper/locales": "^1.9.0"
+  }
 }
