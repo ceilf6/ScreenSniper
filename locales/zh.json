@@ -2,9 +2,11 @@
   "app_title": "ScreenSniper - 截图工具",
   "btn_fullscreen": "截取全屏 (Ctrl+Shift+F)",
   "btn_area": "截取区域 (Ctrl+Shift+A)",
+  "btn_scroll": "滚动截图",
   "btn_settings": "设置",
   "tray_fullscreen": "截取全屏",
   "tray_area": "截取区域",
+  "tray_scroll": "滚动截图",
   "tray_show": "显示主窗口",
   "tray_about": "关于",
   "tray_quit": "退出",
@@ -93,5 +95,7 @@
   "face_blur_init_failed": "人脸检测器初始化失败\n\n可能的原因：\n1. 模型文件缺失（opencv_face_detector_uint8.pb 和 opencv_face_detector.pbtxt.txt）\n2. OpenCV 库未正确配置\n\n请检查 models 目录下是否有模型文件",
   "face_blur_not_ready": "人脸检测器初始化后仍不可用\n\n请检查：\n1. 模型文件是否完整\n2. OpenCV 库是否正确安装",
   "face_blur_not_available_title": "功能不可用",
-  "face_blur_opencv_disabled": "人脸识别功能需要 OpenCV 支持\n\n当前编译版本已禁用 OpenCV（NO_OPENCV 已定义）\n\n要启用此功能，请：\n1. 安装 OpenCV 库\n2. 在 ScreenSniper.pro 中配置 OpenCV 路径\n3. 移除 DEFINES += NO_OPENCV 定义\n4. 重新编译项目"
+  "face_blur_opencv_disabled": "人脸识别功能需要 OpenCV 支持\n\n当前编译版本已禁用 OpenCV（NO_OPENCV 已定义）\n\n要启用此功能，请：\n1. 安装 OpenCV 库\n2. 在 ScreenSniper.pro 中配置 OpenCV 路径\n3. 移除 DEFINES += NO_OPENCV 定义\n4. 重新编译项目",
+  "scroll_selection_size": "选区大小: %1 x %2",
+  "scroll_stop_button": "停止"
 }

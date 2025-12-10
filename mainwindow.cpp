@@ -72,7 +72,7 @@ void MainWindow::setupUI()
     // 添加按钮（使用多语言文本）
     btnFullScreen = new QPushButton(getText("btn_fullscreen", "截取全屏 (Ctrl+Shift+F)"), this);
     btnArea = new QPushButton(getText("btn_area", "截取区域 (Ctrl+Shift+A)"), this);
-    btnScroll = new QPushButton(getText("btnScroll ", "滚动截图"), this);
+    btnScroll = new QPushButton(getText("btn_scroll", "滚动截图"), this);
     btnSettings = new QPushButton(getText("btn_settings", "设置"), this);
 
     btnFullScreen->setMinimumHeight(40);
@@ -107,7 +107,7 @@ void MainWindow::setupTrayIcon()
 
     actionFullScreen = new QAction(getText("tray_fullscreen", "截取全屏"), this);
     actionArea = new QAction(getText("tray_area", "截取区域"), this);
-    actionScroll= new QAction(getText("tray_roll", "滚动截图"), this);
+    actionScroll = new QAction(getText("tray_scroll", "滚动截图"), this);
     actionShow = new QAction(getText("tray_show", "显示主窗口"), this);
 
     actionAbout = new QAction(getText("tray_about", "关于"), this);
@@ -206,7 +206,8 @@ void MainWindow::onCaptureScroll()
     hide();
     ScrollCaptureWindow *scrollWin = new ScrollCaptureWindow(nullptr);
 
-    connect(scrollWin, &ScrollCaptureWindow::captureFinished, this, [this](QImage result){
+    connect(scrollWin, &ScrollCaptureWindow::captureFinished, this, [this](QImage result)
+            {
         if(result.isNull()) {
             this->show();
             return;
@@ -215,8 +216,7 @@ void MainWindow::onCaptureScroll()
         // 直接进入 ScreenshotWidget 编辑/查看
         ScreenshotWidget *widget = new ScreenshotWidget();
         widget->setCapturedImage(result);
-        widget->show();
-    });
+        widget->show(); });
 
     QTimer::singleShot(300, scrollWin, &ScrollCaptureWindow::startCapture);
 }
@@ -325,8 +325,8 @@ void MainWindow::updateUI()
         btnFullScreen->setText(getText("btn_fullscreen", "截取全屏 (Ctrl+Shift+F)"));
     if (btnArea)
         btnArea->setText(getText("btn_area", "截取区域 (Ctrl+Shift+A)"));
-    if (btnArea)
-        btnArea->setText(getText("btn_area", "截取区域 (Ctrl+Shift+A)"));
+    if (btnScroll)
+        btnScroll->setText(getText("btn_scroll", "滚动截图"));
     if (btnSettings)
         btnSettings->setText(getText("btn_settings", "设置"));
 
@@ -335,6 +335,8 @@ void MainWindow::updateUI()
         actionFullScreen->setText(getText("tray_fullscreen", "截取全屏"));
     if (actionArea)
         actionArea->setText(getText("tray_area", "截取区域"));
+    if (actionScroll)
+        actionScroll->setText(getText("tray_scroll", "滚动截图"));
     if (actionShow)
         actionShow->setText(getText("tray_show", "显示主窗口"));
     if (actionAbout)

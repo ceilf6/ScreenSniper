@@ -3,6 +3,7 @@
 #include <QDebug>
 #include <QApplication>
 #include <QScreen>
+#include "i18nmanager.h"
 #undef min
 #undef max
 #ifdef Q_OS_WIN
@@ -14,7 +15,8 @@ ScrollStitcher::ScrollStitcher(QObject *parent) : QObject(parent) {}
 
 void ScrollStitcher::processStitch(QImage baseImage, QImage newImage)
 {
-    if (baseImage.isNull()) {
+    if (baseImage.isNull())
+    {
         emit stitchFinished(newImage);
         return;
     }
@@ -26,7 +28,8 @@ void ScrollStitcher::processStitch(QImage baseImage, QImage newImage)
     int offset = calcOffsetByTemplate(matBase, matNew);
 
     // offset <= 0 表示没有找到匹配，或者图像完全没动
-    if (offset <= 0) {
+    if (offset <= 0)
+    {
         emit stitchFailed(baseImage);
         return;
     }
@@ -37,7 +40,8 @@ void ScrollStitcher::processStitch(QImage baseImage, QImage newImage)
 
     // 修改这里：即使validNewH很小，也不停止，而是直接使用完整图像
     // 这样可以处理滚动距离很小的情况
-    if (validNewH <= 0) {
+    if (validNewH <= 0)
+    {
         // 如果完全没有新内容，发送失败信号
         emit stitchFailed(baseImage);
         return;
@@ -63,8 +67,10 @@ void ScrollStitcher::processStitch(QImage baseImage, QImage newImage)
  */
 int ScrollStitcher::calcOffsetByTemplate(const cv::Mat &matBase, const cv::Mat &matNew)
 {
-    if (matBase.empty() || matNew.empty()) return -1;
-    if (matBase.cols != matNew.cols) return -1;
+    if (matBase.empty() || matNew.empty())
+        return -1;
+    if (matBase.cols != matNew.cols)
+        return -1;
 
     // 1. 转灰度 (加速匹配，且减少颜色干扰)
     cv::Mat grayBase, grayNew;
@@ -78,7 +84,8 @@ int ScrollStitcher::calcOffsetByTemplate(const cv::Mat &matBase, const cv::Mat &
     int bottomMargin = 20; // 避开最底部的潜在边框
 
     // 如果图片太小，做保护
-    if (grayBase.rows < probeHeight + bottomMargin || grayNew.rows < probeHeight + bottomMargin) {
+    if (grayBase.rows < probeHeight + bottomMargin || grayNew.rows < probeHeight + bottomMargin)
+    {
         return -1;
     }
 
@@ -103,7 +110,8 @@ int ScrollStitcher::calcOffsetByTemplate(const cv::Mat &matBase, const cv::Mat &
     // 4. 执行模板匹配
     int resultCols = searchImg.cols - templ.cols + 1;
     int resultRows = searchImg.rows - templ.rows + 1;
-    if (resultCols <= 0 || resultRows <= 0) return -1;
+    if (resultCols <= 0 || resultRows <= 0)
+        return -1;
 
     cv::Mat result;
     // TM_CCOEFF_NORMED 是归一化相关系数匹配，结果 1.0 表示完全匹配，-1 表示完全不匹配
@@ -115,7 +123,8 @@ int ScrollStitcher::calcOffsetByTemplate(const cv::Mat &matBase, const cv::Mat &
     cv::minMaxLoc(result, &minVal, &maxVal, &minLoc, &maxLoc);
 
     // 阈值判断：如果相关系数太低，说明没找到重叠区
-    if (maxVal < 0.85) {
+    if (maxVal < 0.85)
+    {
         // 匹配度不够，可能页面闪烁或变化太大
         return -1;
     }
@@ -125,11 +134,13 @@ int ScrollStitcher::calcOffsetByTemplate(const cv::Mat &matBase, const cv::Mat &
 
     int scrollDistance = Y_src - Y_dst;
 
-    if (scrollDistance <= 0) return -1;
+    if (scrollDistance <= 0)
+        return -1;
 
     int offset = grayBase.rows - scrollDistance;
 
-    if (offset <= 0 || offset >= grayNew.rows) return -1;
+    if (offset <= 0 || offset >= grayNew.rows)
+        return -1;
 
     return offset;
 }
@@ -137,14 +148,15 @@ int ScrollStitcher::calcOffsetByTemplate(const cv::Mat &matBase, const cv::Mat &
 cv::Mat ScrollStitcher::qImageToCvMat(const QImage &inImage)
 {
     QImage image = inImage.convertToFormat(QImage::Format_RGB888);
-    cv::Mat mat(image.height(), image.width(), CV_8UC3, (void*)image.constBits(), image.bytesPerLine());
+    cv::Mat mat(image.height(), image.width(), CV_8UC3, (void *)image.constBits(), image.bytesPerLine());
     return mat.clone();
 }
 
 QImage ScrollStitcher::cvMatToQImage(const cv::Mat &inMat)
 {
-    if (inMat.empty()) return QImage();
-    QImage img((const uchar*)inMat.data, inMat.cols, inMat.rows, inMat.step, QImage::Format_RGB888);
+    if (inMat.empty())
+        return QImage();
+    QImage img((const uchar *)inMat.data, inMat.cols, inMat.rows, inMat.step, QImage::Format_RGB888);
     return img.copy();
 }
 
@@ -173,7 +185,8 @@ ScrollCaptureWindow::ScrollCaptureWindow(QWidget *parent)
     connect(m_thread, &QThread::finished, m_stitcher, &QObject::deleteLater);
     connect(m_stitcher, &ScrollStitcher::stitchFinished, this, &ScrollCaptureWindow::onStitchResult);
 
-    connect(m_stitcher, &ScrollStitcher::stitchFailed, this, [=](QImage){
+    connect(m_stitcher, &ScrollStitcher::stitchFailed, this, [=](QImage)
+            {
         m_sameImgCount++;
         m_isStitching = false;
         if (m_sameImgCount >= 10) {  // 增加失败次数阈值,防止过早的结束
@@ -181,15 +194,15 @@ ScrollCaptureWindow::ScrollCaptureWindow(QWidget *parent)
         } else {
             // 继续尝试，不立即停止
             qDebug() << "拼接失败，继续尝试，失败次数:" << m_sameImgCount;
-        }
-    });
+        } });
 
     m_thread->start();
 }
 
 ScrollCaptureWindow::~ScrollCaptureWindow()
 {
-    if (m_thread->isRunning()) {
+    if (m_thread->isRunning())
+    {
         m_thread->quit();
         m_thread->wait();
     }
@@ -217,17 +230,21 @@ void ScrollCaptureWindow::paintEvent(QPaintEvent *)
     QPainter painter(this);
     painter.fillRect(rect(), QColor(0, 0, 0, 100));
 
-    if (!m_selectRect.isNull()) {
+    if (!m_selectRect.isNull())
+    {
         painter.setCompositionMode(QPainter::CompositionMode_Clear);
         painter.fillRect(m_selectRect, Qt::transparent);
         painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
 
-        if (m_state == SELECTING) {
+        if (m_state == SELECTING)
+        {
             painter.setPen(Qt::white);
             QFont font("Microsoft YaHei", 10);
             painter.setFont(font);
 
-            QString tipText = QString("选区大小: %1 x %2").arg(m_selectRect.width()).arg(m_selectRect.height());
+            QString tipText = getText("scroll_selection_size", "选区大小: %1 x %2")
+                                  .arg(m_selectRect.width())
+                                  .arg(m_selectRect.height());
 
             QFontMetrics fm(font);
             int textW = fm.horizontalAdvance(tipText) + 10;
@@ -237,7 +254,8 @@ void ScrollCaptureWindow::paintEvent(QPaintEvent *)
             painter.fillRect(textBgRect, QColor(0, 0, 0, 180));
             painter.drawText(textBgRect, Qt::AlignCenter, tipText);
         }
-        else if (m_state == SCROLLING) {
+        else if (m_state == SCROLLING)
+        {
             // 将停止按钮放在选区外部右下角
             int btnWidth = 60;
             int btnHeight = 25;
@@ -245,11 +263,10 @@ void ScrollCaptureWindow::paintEvent(QPaintEvent *)
 
             // 放在选区右下方，与选区保持距离
             m_stopButtonRect = QRect(
-                m_selectRect.right() + margin,  // 选区右侧 + 间距
-                m_selectRect.bottom() - btnHeight,  // 与选区底部对齐
+                m_selectRect.right() + margin,     // 选区右侧 + 间距
+                m_selectRect.bottom() - btnHeight, // 与选区底部对齐
                 btnWidth,
-                btnHeight
-                );
+                btnHeight);
 
             // 白色按钮
             painter.fillRect(m_stopButtonRect, QColor(255, 255, 255, 220));
@@ -260,21 +277,25 @@ void ScrollCaptureWindow::paintEvent(QPaintEvent *)
 
             // 停止文字
             painter.setPen(Qt::black);
-            painter.drawText(m_stopButtonRect, Qt::AlignCenter, "停止");
+            painter.drawText(m_stopButtonRect, Qt::AlignCenter, getText("scroll_stop_button", "停止"));
         }
     }
 }
 
 void ScrollCaptureWindow::mousePressEvent(QMouseEvent *event)
 {
-    if (event->button() == Qt::LeftButton) {
-        if (m_state == SELECTING) {
+    if (event->button() == Qt::LeftButton)
+    {
+        if (m_state == SELECTING)
+        {
             m_startPoint = event->pos();
             m_selectRect = QRect();
             update();
         }
-        else if (m_state == SCROLLING) {
-            if (m_stopButtonRect.contains(event->pos())) {
+        else if (m_state == SCROLLING)
+        {
+            if (m_stopButtonRect.contains(event->pos()))
+            {
                 m_stopRequested = true;
                 finishCapture();
             }
@@ -284,7 +305,8 @@ void ScrollCaptureWindow::mousePressEvent(QMouseEvent *event)
 
 void ScrollCaptureWindow::mouseMoveEvent(QMouseEvent *event)
 {
-    if (m_state == SELECTING && (event->buttons() & Qt::LeftButton)) {
+    if (m_state == SELECTING && (event->buttons() & Qt::LeftButton))
+    {
         m_selectRect = QRect(m_startPoint, event->pos()).normalized();
         update();
     }
@@ -292,8 +314,10 @@ void ScrollCaptureWindow::mouseMoveEvent(QMouseEvent *event)
 
 void ScrollCaptureWindow::mouseReleaseEvent(QMouseEvent *event)
 {
-    if (m_state == SELECTING && event->button() == Qt::LeftButton) {
-        if (m_selectRect.width() < 50 || m_selectRect.height() < 50) {
+    if (m_state == SELECTING && event->button() == Qt::LeftButton)
+    {
+        if (m_selectRect.width() < 50 || m_selectRect.height() < 50)
+        {
             m_selectRect = QRect();
             update();
             return;
@@ -316,10 +340,14 @@ void ScrollCaptureWindow::mouseReleaseEvent(QMouseEvent *event)
 
 void ScrollCaptureWindow::keyPressEvent(QKeyEvent *event)
 {
-    if (event->key() == Qt::Key_Escape) {
-        if (m_state == SCROLLING) {
+    if (event->key() == Qt::Key_Escape)
+    {
+        if (m_state == SCROLLING)
+        {
             finishCapture();
-        } else {
+        }
+        else
+        {
             close();
         }
     }
@@ -328,7 +356,8 @@ void ScrollCaptureWindow::keyPressEvent(QKeyEvent *event)
 QImage ScrollCaptureWindow::grabCurrentArea()
 {
     QScreen *screen = QApplication::primaryScreen();
-    if (!screen) return QImage();
+    if (!screen)
+        return QImage();
 
     QImage img = screen->grabWindow(0).copy(m_selectRect).toImage();
     return img;
@@ -337,13 +366,15 @@ QImage ScrollCaptureWindow::grabCurrentArea()
 void ScrollCaptureWindow::onScrollTimer()
 {
 #ifdef Q_OS_WIN
-    if (GetAsyncKeyState(VK_LBUTTON) & 0x8000) {
+    if (GetAsyncKeyState(VK_LBUTTON) & 0x8000)
+    {
         POINT pt;
         GetCursorPos(&pt);
         QPoint mousePos(pt.x, pt.y);
         mousePos = mapFromGlobal(mousePos);
 
-        if (m_stopButtonRect.contains(mousePos)) {
+        if (m_stopButtonRect.contains(mousePos))
+        {
             m_stopRequested = true;
             finishCapture();
             return;
@@ -351,14 +382,17 @@ void ScrollCaptureWindow::onScrollTimer()
     }
 #endif
 
-    if (m_stopRequested) {
+    if (m_stopRequested)
+    {
         finishCapture();
         return;
     }
-    if (m_isStitching) return;
+    if (m_isStitching)
+        return;
 
     // 增加最大滚动次数，避免过早停止
-    if (m_scrollCount >= 200) {  // 增加最大滚动次数
+    if (m_scrollCount >= 200)
+    { // 增加最大滚动次数
         qDebug() << "达到最大滚动次数，停止截图";
         finishCapture();
         return;
@@ -366,7 +400,8 @@ void ScrollCaptureWindow::onScrollTimer()
 
     sendMouseWheel(-120);
 
-    QTimer::singleShot(250, this, [=](){
+    QTimer::singleShot(250, this, [=]()
+                       {
         if (m_state != SCROLLING || m_stopRequested) {
             finishCapture();
             return;
@@ -385,10 +420,8 @@ void ScrollCaptureWindow::onScrollTimer()
                                   Q_ARG(QImage, m_fullCanvas),
                                   Q_ARG(QImage, img));
         m_scrollCount++;
-        qDebug() << "滚动次数:" << m_scrollCount << "，失败次数:" << m_sameImgCount;
-    });
+        qDebug() << "滚动次数:" << m_scrollCount << "，失败次数:" << m_sameImgCount; });
 }
-
 
 void ScrollCaptureWindow::onStitchResult(QImage result)
 {
@@ -399,7 +432,8 @@ void ScrollCaptureWindow::onStitchResult(QImage result)
 
 void ScrollCaptureWindow::finishCapture()
 {
-    if (m_state == IDLE) return;
+    if (m_state == IDLE)
+        return;
     m_state = IDLE;
     m_scrollTimer->stop();
     releaseKeyboard();
@@ -420,4 +454,9 @@ void ScrollCaptureWindow::sendMouseWheel(int delta)
 
     SendInput(1, &input, sizeof(INPUT));
 #endif
+}
+
+QString ScrollCaptureWindow::getText(const QString &key, const QString &defaultText) const
+{
+    return I18nManager::instance()->getText(key, defaultText);
 }

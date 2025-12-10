@@ -28,6 +28,7 @@ public slots:
 signals:
     void stitchFinished(QImage result);
     void stitchFailed(QImage original);
+
 private:
     int calcOffsetByTemplate(const cv::Mat &matBase, const cv::Mat &matNew);
     cv::Mat qImageToCvMat(const QImage &inImage);
@@ -59,7 +60,12 @@ private slots:
     void onStitchResult(QImage result);
 
 private:
-    enum State { IDLE, SELECTING, SCROLLING };
+    enum State
+    {
+        IDLE,
+        SELECTING,
+        SCROLLING
+    };
     State m_state;
 
     QRect m_selectRect;
@@ -74,10 +80,11 @@ private:
     int m_sameImgCount;
     bool m_isStitching;
     bool m_stopRequested;
-    QRect m_stopButtonRect;  // 停止按钮区域
+    QRect m_stopButtonRect; // 停止按钮区域
     void sendMouseWheel(int delta);
     QImage grabCurrentArea();
     void finishCapture();
+    QString getText(const QString &key, const QString &defaultText) const;
 };
 
 #endif // SCROLLCAPTURE_H
