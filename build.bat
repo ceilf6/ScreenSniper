@@ -11,16 +11,16 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-REM 检查并安装翻译文件
-if exist package.json (
-    echo 🌐 检查翻译文件...
-    if not exist node_modules (
-        echo 📦 首次构建，正在安装依赖...
-        call npm install
-    )
-    call npm run install-locales
-    echo.
+REM 国际化支持
+echo 📥 更新 locales 包...
+REM 修复 npm 缓存权限问题（Windows通过清理缓存解决）
+if exist "%USERPROFILE%\.npm" (
+    echo 🧹 清理 npm 缓存...
+    call npm cache clean --force
 )
+call npm install @screensniper/locales
+call npm run install-locales
+echo.
 
 REM 创建构建目录
 if not exist build (

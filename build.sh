@@ -2,16 +2,16 @@
 
 echo "🔨 开始编译 ScreenSniper..."
 
-# 检查并安装翻译文件
-if [ -f "package.json" ] && command -v node &> /dev/null; then
-    echo "🌐 检查翻译文件..."
-    if [ ! -d "node_modules" ]; then
-        echo "📦 首次构建，正在安装依赖..."
-        npm install
-    fi
-    npm run install-locales
-    echo ""
+# 国际化支持
+echo "📥 更新 locales 包..."
+# 修复 npm 缓存权限问题
+if [ -d "$HOME/.npm" ]; then
+    sudo chown -R $(id -u):$(id -g) "$HOME/.npm" 2>/dev/null || true
+    rm -rf ~/.npm
 fi
+npm install @screensniper/locales
+npm run install-locales
+echo ""
 
 # 创建构建目录
 if [ ! -d "build" ]; then
