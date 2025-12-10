@@ -32,6 +32,7 @@ private slots:
     void onCaptureScreen();
     void onCaptureArea();
     void onCaptureWindow();
+    void onCaptureScroll();
     void onSettings();
     void onAbout();
     void onTrayIconActivated(QSystemTrayIcon::ActivationReason reason);
@@ -51,7 +52,9 @@ private:
     QPushButton *btnFullScreen;
     QPushButton *btnArea;
     QPushButton *btnSettings;
+    QPushButton *btnScroll;
     QAction *actionFullScreen;
+    QAction *actionScroll;
     QAction *actionArea;
     QAction *actionShow;
     QAction *actionAbout;
