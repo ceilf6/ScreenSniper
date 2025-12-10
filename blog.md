@@ -287,6 +287,96 @@ void ScreenshotWidget::copyToClipboard()
 
 最后 btnCopy 信号槽连接到 copyToClipboard 函数
 
+# UI绘制
+
+## 1. 主界面
+
+首先通过 UI文件 框定窗口架构模版（类 HTML ）
+
+qmake 会在构建阶段通过 **UIC 将** mainwindow.ui 文件处理生成 ui_mainwindow.h
+
+然后去 mainwindow.cpp 通过 setupUI 方法加载模版后创建按钮，并在使用时插入槽函数（类 <script
+
+```cpp
+MainWindow::MainWindow() {
+    ui->setupUi(this);  // 加载UI文件
+    setupUI();          // 代码创建按钮
+    setupTrayIcon();    // 创建托盘图标
+}
+
+void setupUI() {
+    // 创建中心部件和垂直布局
+    QWidget *centralWidget = new QWidget(this);
+    QVBoxLayout *layout = new QVBoxLayout(centralWidget);
+    
+    // 创建按钮 - 使用多语言文本
+    btnFullScreen = new QPushButton(getText("btn_fullscreen", "截取全屏"));
+    btnArea = new QPushButton(getText("btn_area", "截取区域"));
+    btnScroll = new QPushButton(getText("btn_scroll", "滚动截图"));
+    btnSettings = new QPushButton(getText("btn_settings", "设置"));
+    
+    // 添加到布局
+    layout->addWidget(btnFullScreen);
+    layout->addWidget(btnArea);
+    // ...
+    
+    setCentralWidget(centralWidget);
+}
+```
+
+## 2. 工具栏
+
+```cpp
+void ScreenshotWidget::setupToolbar() {
+    toolbar = new QWidget(this);
+
+    // 样式表定义外观 - 半透明黑色背景 + 圆角
+    toolbar->setStyleSheet(
+        "QWidget#toolbar { "
+        "background-color: rgba(40, 40, 40, 220); "  // 半透明黑色
+        "border-radius: 8px; "                        // 圆角
+        "border: 1px solid rgba(255, 255, 255, 25); "
+        "} "
+        "QPushButton { "
+        "background-color: transparent; "
+        "color: white; "
+        "padding: 8px; "
+        "border-radius: 6px; "
+        "} "
+        "QPushButton:hover { "
+        "background-color: rgba(255, 255, 255, 40); " // 悬停效果
+        "}"
+    );
+
+    // 水平布局
+    QHBoxLayout *layout = new QHBoxLayout(toolbar);
+    layout->setSpacing(5);
+    layout->setContentsMargins(10, 5, 10, 5);
+
+    // 创建按钮 - 使用SVG图标
+    btnShapes = new QPushButton(toolbar);
+    btnShapes->setIcon(QIcon(":/icons/icons/shapes.svg"));
+    btnShapes->setIconSize(QSize(22, 22));
+    btnShapes->setFixedSize(40, 40);
+
+    // 添加所有按钮...
+    layout->addWidget(btnShapes);
+    layout->addWidget(btnText);
+    layout->addWidget(btnPen);
+    // ...
+}
+```
+
+工具栏的模版结构不像主界面一样是通过UI文件，而是通过 C++ new 出来的控件树，并通过 addWidget 方法将按钮控件加入布局（类似于 flex, grid 布局）
+
+同时通过 setStyleSheet 定义了样式
+
+## 技术考量
+
+我认为，主界面的话基本只有区域截屏、全屏截屏、设置等，可变性比较小，用 ui 文件足矣
+
+但是工具栏是功能实现的核心，需要代码有较强的可拓展性和可维护性，所以静态的 XML 相较于通过实例组件来的要麻烦，并且 Qt Designer 是只能固定位置的，那么就不能根据截屏的方位去进行碰撞检测从而实时更新位置
+
 # 有效空间的跨平台支持
 
 ## 问题1: 菜单栏挤压窗口
@@ -833,7 +923,35 @@ package.json 依赖文件中设置
   },
 ```
 
-从而实现在开发环境自动更新包版本
+同时更新了构建脚本
+
+```cpp
+// build.sh
+# 国际化支持
+echo "📥 更新 locales 包..."
+# 修复 npm 缓存权限问题
+if [ -d "$HOME/.npm" ]; then
+    sudo chown -R $(id -u):$(id -g) "$HOME/.npm" 2>/dev/null || true
+    rm -rf ~/.npm
+fi
+npm install @screensniper/locales
+npm run install-locales
+echo ""
+```
+
+```cpp
+// build.bat
+REM 国际化支持
+echo 📥 更新 locales 包...
+REM 修复 npm 缓存权限问题（Windows通过清理缓存解决）
+if exist "%USERPROFILE%\.npm" (
+    echo 🧹 清理 npm 缓存...
+    call npm cache clean --force
+)
+call npm install @screensniper/locales
+call npm run install-locales
+echo.
+```
 
 ## 3. 代码使用
 
