@@ -39,7 +39,15 @@ OcrManager::OcrManager()
 
 OcrManager::~OcrManager()
 {
-    cleanup();
+#ifdef USE_TESSERACT
+    if (m_tesseractApi != nullptr)
+    {
+        m_tesseractApi->End();
+        delete m_tesseractApi;
+        m_tesseractApi = nullptr;
+        m_tesseractInitialized = false;
+    }
+#endif
 }
 
 OcrManager *OcrManager::instance()
@@ -224,16 +232,6 @@ void OcrManager::cleanup()
 
     if (m_instance != nullptr)
     {
-#ifdef USE_TESSERACT
-        if (m_instance->m_tesseractApi != nullptr)
-        {
-            m_instance->m_tesseractApi->End();
-            delete m_instance->m_tesseractApi;
-            m_instance->m_tesseractApi = nullptr;
-            m_instance->m_tesseractInitialized = false;
-        }
-#endif
-
         delete m_instance;
         m_instance = nullptr;
     }
