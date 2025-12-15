@@ -86,10 +86,6 @@ private:
      */
     bool loadTranslationFile(const QString &filePath);
 
-    // 单例实例
-    static I18nManager *m_instance;
-    static QMutex m_mutex; // 线程安全锁
-
     QString m_currentLanguage; // 当前语言代码
     QJsonObject m_translations; // 当前语言的翻译数据
     QMap<QString, QJsonObject> m_languageCache; // 语言缓存，避免重复加载

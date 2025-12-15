@@ -7,10 +7,6 @@
 #include <QSettings>
 #include <QDebug>
 
-// 初始化静态成员变量
-I18nManager *I18nManager::m_instance = nullptr;
-QMutex I18nManager::m_mutex;
-
 I18nManager::I18nManager(QObject *parent)
     : QObject(parent),
       m_currentLanguage("zh") // 默认语言为中文
@@ -36,16 +32,8 @@ I18nManager::~I18nManager()
 
 I18nManager *I18nManager::instance()
 {
-    // 双重检查锁定模式，确保线程安全
-    if (m_instance == nullptr)
-    {
-        QMutexLocker locker(&m_mutex);
-        if (m_instance == nullptr)
-        {
-            m_instance = new I18nManager();
-        }
-    }
-    return m_instance;
+    static I18nManager instance;
+    return &instance;
 }
 
 bool I18nManager::loadLanguage(const QString &language)
