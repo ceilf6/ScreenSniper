@@ -22,7 +22,7 @@ public:
      * @brief 获取单例实例
      * @return I18nManager* 单例指针
      */
-    static I18nManager* instance();
+    static I18nManager *instance();
 
     /**
      * @brief 加载翻译文件
@@ -86,10 +86,10 @@ private:
      */
     bool loadTranslationFile(const QString &filePath);
 
-    QString m_currentLanguage; // 当前语言代码
-    QJsonObject m_translations; // 当前语言的翻译数据
+    QString m_currentLanguage;                  // 当前语言代码
+    QJsonObject m_translations;                 // 当前语言的翻译数据
     QMap<QString, QJsonObject> m_languageCache; // 语言缓存，避免重复加载
-    QStringList m_supportedLanguages; // 支持的语言列表
+    QStringList m_supportedLanguages;           // 支持的语言列表
 };
 
 #endif // I18NMANAGER_H
