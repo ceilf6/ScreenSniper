@@ -56,7 +56,7 @@ ScreenshotWidget::ScreenshotWidget(QWidget *parent)
       selecting(false),
       selected(false),
       m_isadjust(false),
-      captureMode(NormalMode),  // 初始化为普通模式
+      captureMode(NormalMode), // 初始化为普通模式
       m_selectedWindow(true),
       toolbar(nullptr),
       currentPenColor(Qt::red),
@@ -200,6 +200,14 @@ ScreenshotWidget::ScreenshotWidget(QWidget *parent)
 
 ScreenshotWidget::~ScreenshotWidget()
 {
+#ifndef NO_OPENCV
+    if (faceDetector)
+    {
+        delete faceDetector;
+        faceDetector = nullptr;
+    }
+#endif
+
     // 断开所有信号连接以防止悬空指针访问
     if (m_aiManager)
     {
@@ -283,9 +291,10 @@ void ScreenshotWidget::initializeI18nConnection()
     connect(I18nManager::instance(), &I18nManager::languageChanged,
             this, &ScreenshotWidget::onLanguageChanged);
 }
-void ScreenshotWidget::setCapturedImage(const QImage& originalImage)
+void ScreenshotWidget::setCapturedImage(const QImage &originalImage)
 {
-    if (originalImage.isNull()) return;
+    if (originalImage.isNull())
+        return;
 
     // 设置为长截图模式
     captureMode = ScrollMode;
@@ -305,7 +314,8 @@ void ScreenshotWidget::setCapturedImage(const QImage& originalImage)
 
     // 3. 生成最终画布图像
     QImage finalImage = originalImage;
-    if (finalImage.width() > maxSize.width() || finalImage.height() > maxSize.height()) {
+    if (finalImage.width() > maxSize.width() || finalImage.height() > maxSize.height())
+    {
         finalImage = finalImage.scaled(maxSize, Qt::KeepAspectRatio, Qt::SmoothTransformation);
     }
 
@@ -323,7 +333,8 @@ void ScreenshotWidget::setCapturedImage(const QImage& originalImage)
 
     // 工具栏放在图片正下方，居中显示
     int toolX = (imgW - toolbar->width()) / 2;
-    if (toolX < 0) toolX = 0;
+    if (toolX < 0)
+        toolX = 0;
     int toolY = imgH + 10;
 
     toolbar->move(toolX, toolY);
@@ -335,18 +346,18 @@ void ScreenshotWidget::setCapturedImage(const QImage& originalImage)
     resize(winW, winH);
 
     // 7. 窗口居中
-    if (screen) {
+    if (screen)
+    {
         setGeometry(QStyle::alignedRect(
             Qt::LeftToRight,
             Qt::AlignCenter,
             this->size(),
-            screen->availableGeometry()
-            ));
+            screen->availableGeometry()));
     }
 
     // 8. 关键修改：长截图也需要启用选区，但选区是整张图片
     selectedRect = QRect(0, 0, imgW, imgH);
-    selected = true;  // 必须为 true，绘图功能才能工作
+    selected = true; // 必须为 true，绘图功能才能工作
     selecting = false;
 
     // 9. 清除之前的绘图内容（可选）
@@ -646,7 +657,7 @@ void ScreenshotWidget::setupToolbar()
     connect(btnAutoFaceBlur, &QPushButton::clicked, this, [this]()
             {
 #ifndef NO_OPENCV
-                selected=true;
+                selected = true;
                 if (!selected || selectedRect.isEmpty())
                 {
                     QMessageBox::warning(this,
@@ -1091,14 +1102,17 @@ void ScreenshotWidget::paintEvent(QPaintEvent *event)
 
     // 辅助 Lambda：将逻辑坐标转为物理坐标 (处理 DPI 和 偏移)
     // 注意：ScrollMode 下通常不需要减去 virtualGeometryTopLeft，除非你的长截图逻辑特殊
-    auto toPhysicalRect = [&](const QRect &logicalRect, bool useOffset = true) -> QRect {
-        if (logicalRect.isEmpty()) return QRect();
+    auto toPhysicalRect = [&](const QRect &logicalRect, bool useOffset = true) -> QRect
+    {
+        if (logicalRect.isEmpty())
+            return QRect();
 
         double x = logicalRect.x();
         double y = logicalRect.y();
 
         // 仅在普通模式下需要处理屏幕偏移
-        if (useOffset && captureMode != ScrollMode) {
+        if (useOffset && captureMode != ScrollMode)
+        {
             QPoint offset = geometry().topLeft() - virtualGeometryTopLeft;
             x += offset.x();
             y += offset.y();
@@ -1108,8 +1122,7 @@ void ScreenshotWidget::paintEvent(QPaintEvent *event)
             qRound(x * devicePixelRatio),
             qRound(y * devicePixelRatio),
             qRound(logicalRect.width() * devicePixelRatio),
-            qRound(logicalRect.height() * devicePixelRatio)
-            );
+            qRound(logicalRect.height() * devicePixelRatio));
     };
 
     // =========================================================
@@ -1125,17 +1138,21 @@ void ScreenshotWidget::paintEvent(QPaintEvent *event)
         painter.fillRect(rect(), QColor(51, 51, 51));
 
         // 2.2 绘制完整长图
-        if (!screenPixmap.isNull()) {
+        if (!screenPixmap.isNull())
+        {
             // 假设 screenPixmap 已经是拼接好的长图，且 devicePixelRatio 设置正确
             painter.drawPixmap(0, 0, screenPixmap);
         }
 
         // 2.3 长截图模式下的特效绘制 (模糊/马赛克)
-        if (!EffectAreas.isEmpty()) {
-            for (int i = 0; i < EffectAreas.size(); ++i) {
+        if (!EffectAreas.isEmpty())
+        {
+            for (int i = 0; i < EffectAreas.size(); ++i)
+            {
                 // 长截图不需要 intersected(selectedRect)，因为是全图
                 QRect logicalArea = EffectAreas[i];
-                if (logicalArea.isEmpty()) continue;
+                if (logicalArea.isEmpty())
+                    continue;
 
                 // 转换物理坐标 (useOffset = false)
                 QRect physicalArea = toPhysicalRect(logicalArea, false);
@@ -1184,7 +1201,8 @@ void ScreenshotWidget::paintEvent(QPaintEvent *event)
             sizeLabel->setText(sizeText);
             // 智能调整标签位置
             int labelY = currentSelection.top() - sizeLabel->height() - 5;
-            if (labelY < 0) labelY = currentSelection.top() + 5;
+            if (labelY < 0)
+                labelY = currentSelection.top() + 5;
             sizeLabel->move(currentSelection.left(), labelY);
             sizeLabel->adjustSize();
             sizeLabel->show();
@@ -1195,12 +1213,14 @@ void ScreenshotWidget::paintEvent(QPaintEvent *event)
                 for (int i = 0; i < EffectAreas.size(); ++i)
                 {
                     QRect logicalArea = EffectAreas[i].intersected(paintAreaRect);
-                    if (logicalArea.isEmpty()) continue;
+                    if (logicalArea.isEmpty())
+                        continue;
 
                     QRect physicalArea = toPhysicalRect(logicalArea, true);
                     physicalArea = physicalArea.intersected(screenPixmap.rect()); // 保护边界
 
-                    if (physicalArea.isEmpty()) continue;
+                    if (physicalArea.isEmpty())
+                        continue;
 
                     QPixmap sourcePart = screenPixmap.copy(physicalArea);
                     sourcePart.setDevicePixelRatio(1.0);
@@ -1212,20 +1232,25 @@ void ScreenshotWidget::paintEvent(QPaintEvent *event)
             }
 
             // 绘制拖拽调整手柄 (仅在非拖拽选取状态)
-            if (selected) {
+            if (selected)
+            {
                 // 此处调用绘制手柄的函数 (代码略，参考之前)
                 int h = 8;
-                painter.setBrush(QColor(0, 150, 255)); painter.setPen(Qt::white);
-                painter.drawRect(currentSelection.topLeft().x()-h/2, currentSelection.topLeft().y()-h/2, h, h);
-                painter.drawRect(currentSelection.bottomRight().x()-h/2, currentSelection.bottomRight().y()-h/2, h, h);
+                painter.setBrush(QColor(0, 150, 255));
+                painter.setPen(Qt::white);
+                painter.drawRect(currentSelection.topLeft().x() - h / 2, currentSelection.topLeft().y() - h / 2, h, h);
+                painter.drawRect(currentSelection.bottomRight().x() - h / 2, currentSelection.bottomRight().y() - h / 2, h, h);
                 // ... 其他手柄
             }
-        } else {
+        }
+        else
+        {
             sizeLabel->hide();
         }
 
         // 放大镜通常只在普通模式且非选区调整时显示
-        if (showMagnifier && !selected) {
+        if (showMagnifier && !selected)
+        {
             int magnifierSize = 120; // 放大镜大小
             int magnifierScale = 4;  // 放大倍数
 
@@ -1296,19 +1321,22 @@ void ScreenshotWidget::paintEvent(QPaintEvent *event)
         painter.setClipRect(paintAreaRect);
 
         // 3.1 箭头
-        for (const auto &arrow : arrows) {
+        for (const auto &arrow : arrows)
+        {
             drawArrow(painter, arrow.start, arrow.end, arrow.color, arrow.width);
         }
 
         // 3.2 矩形
         painter.setBrush(Qt::NoBrush);
-        for (const auto &rect : rectangles) {
+        for (const auto &rect : rectangles)
+        {
             painter.setPen(QPen(rect.color, rect.width));
             painter.drawRect(rect.rect);
         }
 
         // 3.3 椭圆
-        for (const auto &ellipse : ellipses) {
+        for (const auto &ellipse : ellipses)
+        {
             painter.setPen(QPen(ellipse.color, ellipse.width));
             painter.drawEllipse(ellipse.rect);
         }
@@ -1322,7 +1350,7 @@ void ScreenshotWidget::paintEvent(QPaintEvent *event)
                 // 但如果只是单击修改属性（isTextInputActive = false），不隐藏文字
                 if (editingTextIndex == i && isTextInputActive)
                 {
-                    continue;  // 跳过绘制正在编辑的文字
+                    continue; // 跳过绘制正在编辑的文字
                 }
                 const DrawnText &text = texts[i];
                 // 检查文字是否与截图框有重叠
@@ -1335,8 +1363,10 @@ void ScreenshotWidget::paintEvent(QPaintEvent *event)
         }
 
         // 3.5 画笔轨迹 (已完成)
-        for (const auto &stroke : penStrokes) {
-            if (stroke.points.size() < 2) continue;
+        for (const auto &stroke : penStrokes)
+        {
+            if (stroke.points.size() < 2)
+                continue;
             QPen pen(stroke.color, stroke.width);
             pen.setCapStyle(Qt::RoundCap);
             pen.setJoinStyle(Qt::RoundJoin);
@@ -1344,36 +1374,47 @@ void ScreenshotWidget::paintEvent(QPaintEvent *event)
 
             QPainterPath path;
             path.moveTo(stroke.points.first());
-            for (int k = 1; k < stroke.points.size(); ++k) path.lineTo(stroke.points[k]);
+            for (int k = 1; k < stroke.points.size(); ++k)
+                path.lineTo(stroke.points[k]);
             painter.drawPath(path);
         }
 
         // 3.6 正在绘制的内容 (Preview)
-        if (isDrawing) {
+        if (isDrawing)
+        {
             painter.setPen(QPen(currentPenColor, currentPenWidth));
             painter.setBrush(Qt::NoBrush);
             QRect drawRect = QRect(drawStartPoint, drawEndPoint).normalized();
 
-            if (currentDrawMode == Arrow) {
+            if (currentDrawMode == Arrow)
+            {
                 drawArrow(painter, drawStartPoint, drawEndPoint, currentPenColor, currentPenWidth);
-            } else if (currentDrawMode == Rectangle) {
+            }
+            else if (currentDrawMode == Rectangle)
+            {
                 painter.drawRect(drawRect);
-            } else if (currentDrawMode == Ellipse) {
+            }
+            else if (currentDrawMode == Ellipse)
+            {
                 painter.drawEllipse(drawRect);
-            } else if (currentDrawMode == Pen && currentPenStroke.size() > 1) {
+            }
+            else if (currentDrawMode == Pen && currentPenStroke.size() > 1)
+            {
                 QPen p(currentPenColor, currentPenWidth);
                 p.setCapStyle(Qt::RoundCap);
                 p.setJoinStyle(Qt::RoundJoin);
                 painter.setPen(p);
                 QPainterPath path;
                 path.moveTo(currentPenStroke.first());
-                for (int k = 1; k < currentPenStroke.size(); ++k) path.lineTo(currentPenStroke[k]);
+                for (int k = 1; k < currentPenStroke.size(); ++k)
+                    path.lineTo(currentPenStroke[k]);
                 painter.drawPath(path);
             }
         }
 
         // 3.7 特效拖拽预览 (Blur/Mosaic)
-        if ((currentDrawMode == Mosaic || currentDrawMode == Blur) && drawingEffect) {
+        if ((currentDrawMode == Mosaic || currentDrawMode == Blur) && drawingEffect)
+        {
             QRect previewRect = QRect(EffectStartPoint, EffectEndPoint).normalized();
             // 在 ClipRect 作用下，这里不需要手动 intersected(paintAreaRect)
 
@@ -1387,7 +1428,8 @@ void ScreenshotWidget::paintEvent(QPaintEvent *event)
     }
 
     // 4. 工具栏背景 (如果需要自行绘制)
-    if (captureMode == ScrollMode && toolbar && toolbar->isVisible()) {
+    if (captureMode == ScrollMode && toolbar && toolbar->isVisible())
+    {
         painter.fillRect(toolbar->geometry(), QColor(51, 51, 51));
     }
 }
@@ -2900,13 +2942,15 @@ void ScreenshotWidget::updatePenWidthLabel()
 
 void ScreenshotWidget::updatePenToolbarPosition()
 {
-    if (!penToolbar || !btnPen) return;
+    if (!penToolbar || !btnPen)
+        return;
 
     penToolbar->adjustSize();
     QSize toolbarSize = penToolbar->size();
 
     // 长截图模式使用第一个算法
-    if (captureMode == ScrollMode) {
+    if (captureMode == ScrollMode)
+    {
         // 方法1：直接使用按钮下方位置（窗口坐标）
         QPoint btnPos = btnPen->pos();
         int x = btnPos.x();
@@ -2921,26 +2965,32 @@ void ScreenshotWidget::updatePenToolbarPosition()
         qDebug() << "屏幕底部Y：" << availableGeometry.bottom();
 
         // 如果会超出屏幕，放在按钮上方
-        if (globalPos.y() > availableGeometry.bottom()) {
+        if (globalPos.y() > availableGeometry.bottom())
+        {
             y = btnPos.y() - toolbarSize.height() - 5;
             qDebug() << "调整为上方位置：" << y;
         }
 
         // 水平方向也检查
         globalPos = mapToGlobal(QPoint(x + toolbarSize.width(), y));
-        if (globalPos.x() > availableGeometry.right()) {
+        if (globalPos.x() > availableGeometry.right())
+        {
             x = availableGeometry.right() - mapToGlobal(QPoint(0, 0)).x() - toolbarSize.width() - 10;
             qDebug() << "调整水平位置：" << x;
         }
 
         // 确保不超出窗口边界
         QRect windowRect = rect();
-        if (x < 0) x = 0;
-        if (x + toolbarSize.width() > windowRect.width()) {
+        if (x < 0)
+            x = 0;
+        if (x + toolbarSize.width() > windowRect.width())
+        {
             x = windowRect.width() - toolbarSize.width();
         }
-        if (y < 0) y = 0;
-        if (y + toolbarSize.height() > windowRect.height()) {
+        if (y < 0)
+            y = 0;
+        if (y + toolbarSize.height() > windowRect.height())
+        {
             y = windowRect.height() - toolbarSize.height();
         }
 
@@ -2950,7 +3000,8 @@ void ScreenshotWidget::updatePenToolbarPosition()
                  << "（全局：" << mapToGlobal(QPoint(x, y)) << "）";
     }
     // 区域截图和其他模式使用第二个算法
-    else {
+    else
+    {
         if (!penToolbar || !selected)
             return;
 
@@ -3667,7 +3718,7 @@ void ScreenshotWidget::showWatermarkDialog() // 嵌入水印
         "border-radius: 4px; "
         "}"
         "QPushButton:hover { background-color: #D0D0D0; }" // 悬停效果
-        );
+    );
     dlg.setWindowTitle(getText("watermark_dialog_title", "设置隐水印参数"));
     dlg.setModal(true);
     dlg.resize(380, 180); // 高度减小，因为移除了参数设置
@@ -3939,13 +3990,15 @@ void ScreenshotWidget::setupShapesToolbar()
 
 void ScreenshotWidget::updateShapesToolbarPosition()
 {
-    if (!shapesToolbar || !btnShapes) return;
+    if (!shapesToolbar || !btnShapes)
+        return;
 
     shapesToolbar->adjustSize();
     QSize toolbarSize = shapesToolbar->size();
 
     // 长截图模式
-    if (captureMode == ScrollMode) {
+    if (captureMode == ScrollMode)
+    {
         // 方法1：直接使用按钮下方位置（窗口坐标）
         QPoint btnPos = btnShapes->pos();
         int x = btnPos.x();
@@ -3960,26 +4013,32 @@ void ScreenshotWidget::updateShapesToolbarPosition()
         qDebug() << "屏幕底部Y：" << availableGeometry.bottom();
 
         // 如果会超出屏幕，放在按钮上方
-        if (globalPos.y() > availableGeometry.bottom()) {
+        if (globalPos.y() > availableGeometry.bottom())
+        {
             y = btnPos.y() - toolbarSize.height() - 5;
             qDebug() << "调整为上方位置：" << y;
         }
 
         // 水平方向也检查
         globalPos = mapToGlobal(QPoint(x + toolbarSize.width(), y));
-        if (globalPos.x() > availableGeometry.right()) {
+        if (globalPos.x() > availableGeometry.right())
+        {
             x = availableGeometry.right() - mapToGlobal(QPoint(0, 0)).x() - toolbarSize.width() - 10;
             qDebug() << "调整水平位置：" << x;
         }
 
         // 确保不超出窗口边界
         QRect windowRect = rect();
-        if (x < 0) x = 0;
-        if (x + toolbarSize.width() > windowRect.width()) {
+        if (x < 0)
+            x = 0;
+        if (x + toolbarSize.width() > windowRect.width())
+        {
             x = windowRect.width() - toolbarSize.width();
         }
-        if (y < 0) y = 0;
-        if (y + toolbarSize.height() > windowRect.height()) {
+        if (y < 0)
+            y = 0;
+        if (y + toolbarSize.height() > windowRect.height())
+        {
             y = windowRect.height() - toolbarSize.height();
         }
 
@@ -3989,7 +4048,8 @@ void ScreenshotWidget::updateShapesToolbarPosition()
                  << "（全局：" << mapToGlobal(QPoint(x, y)) << "）";
     }
     // 区域截图
-    else {
+    else
+    {
         if (!shapesToolbar || !selected)
             return;
 
@@ -4289,7 +4349,7 @@ void ScreenshotWidget::performOCR()
 // 图片生成文字描述
 void ScreenshotWidget::onAiDescriptionBtnClicked()
 {
-    if (selectedRect.isNull() )
+    if (selectedRect.isNull())
     {
         QMessageBox::warning(this, getText("ai_description_warning_title", "提示"),
                              getText("ai_description_no_selection", "请先选择截图区域"));
