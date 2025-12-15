@@ -199,6 +199,14 @@ ScreenshotWidget::ScreenshotWidget(QWidget *parent)
 
 ScreenshotWidget::~ScreenshotWidget()
 {
+#ifndef NO_OPENCV
+    if (faceDetector)
+    {
+        delete faceDetector;
+        faceDetector = nullptr;
+    }
+#endif
+
     // 断开所有信号连接以防止悬空指针访问
     if (m_aiManager)
     {
