@@ -29,34 +29,29 @@ if not exist build (
 
 cd build
 
-REM 运行 qmake
-echo 📝 运行 qmake...
-qmake ..\ScreenSniper.pro
+REM 运行 CMake
+echo 📝 运行 CMake 配置...
+cmake ..
 if %errorlevel% neq 0 (
-    echo ❌ qmake 失败，请检查 Qt 环境配置
+    echo ❌ CMake 配置失败，请检查环境配置
     cd ..
     pause
     exit /b 1
 )
 
-REM 检查使用的编译器
-if exist Makefile.Debug (
-    echo 🔧 使用 nmake 编译项目...
-    nmake
-) else (
-    echo 🔧 使用 mingw32-make 编译项目...
-    mingw32-make
-)
+REM 编译项目
+echo 🔧 编译项目...
+cmake --build . --config Release
 
 if %errorlevel% equ 0 (
     echo.
     echo ✅ 编译成功！
     echo.
     echo 运行程序：
-    if exist debug\ScreenSniper.exe (
-        echo   .\build\debug\ScreenSniper.exe
-    ) else if exist release\ScreenSniper.exe (
-        echo   .\build\release\ScreenSniper.exe
+    if exist Release\ScreenSniper.exe (
+        echo   .\build\Release\ScreenSniper.exe
+    ) else if exist Debug\ScreenSniper.exe (
+        echo   .\build\Debug\ScreenSniper.exe
     ) else (
         echo   .\build\ScreenSniper.exe
     )

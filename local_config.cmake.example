@@ -1,0 +1,44 @@
+# local_config.cmake.example
+# Copy this file to `local_config.cmake` and edit to match your machine.
+# Then keep `local_config.cmake` uncommitted (it's already in .gitignore).
+
+# macOS (Homebrew) example:
+# Uncomment and adjust if you installed tesseract and/or OpenCV via Homebrew in non-standard locations
+#
+# set(CMAKE_PREFIX_PATH "/opt/homebrew" ${CMAKE_PREFIX_PATH})
+# 
+# # Tesseract custom paths
+# set(TESSERACT_INCLUDE_DIR "/opt/homebrew/include")
+# set(TESSERACT_LIBRARY "/opt/homebrew/lib/libtesseract.dylib")
+# set(LEPTONICA_LIBRARY "/opt/homebrew/lib/libleptonica.dylib")
+# 
+# # OpenCV custom paths
+# set(OpenCV_DIR "/opt/homebrew/opt/opencv/lib/cmake/opencv4")
+
+# Windows example (adjust paths to your Tesseract/OpenCV installs):
+#
+# set(CMAKE_PREFIX_PATH "D:/C++/opencv/build" ${CMAKE_PREFIX_PATH})
+# 
+# # Tesseract custom paths
+# set(TESSERACT_INCLUDE_DIR "C:/Program Files/Tesseract-OCR/include")
+# set(TESSERACT_LIBRARY "C:/Program Files/Tesseract-OCR/lib/tesseract51.lib")
+# set(LEPTONICA_LIBRARY "C:/Program Files/Tesseract-OCR/lib/leptonica.lib")
+# 
+# # OpenCV custom paths
+# set(OpenCV_DIR "D:/C++/opencv/build")
+
+# Linux example:
+#
+# set(CMAKE_PREFIX_PATH "/usr/local" ${CMAKE_PREFIX_PATH})
+# 
+# # Tesseract custom paths (if needed)
+# set(TESSERACT_INCLUDE_DIR "/usr/local/include")
+# set(TESSERACT_LIBRARY "/usr/local/lib/libtesseract.so")
+# set(LEPTONICA_LIBRARY "/usr/local/lib/libleptonica.so")
+
+# Set custom Qt location if needed:
+# set(CMAKE_PREFIX_PATH "/path/to/Qt/6.x.x/gcc_64" ${CMAKE_PREFIX_PATH})
+
+# Additional CMake options:
+# set(CMAKE_BUILD_TYPE "Release")
+# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")

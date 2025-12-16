@@ -20,13 +20,18 @@ fi
 
 cd build
 
-# 运行 qmake
-echo "📝 运行 qmake..."
-qmake ../ScreenSniper.pro
+# 运行 CMake
+echo "📝 运行 CMake 配置..."
+cmake ..
+
+if [ $? -ne 0 ]; then
+    echo "❌ CMake 配置失败，请检查错误信息"
+    exit 1
+fi
 
 # 编译
 echo "🔧 编译项目..."
-make
+cmake --build . --config Release
 
 if [ $? -eq 0 ]; then
     echo "✅ 编译成功！"
